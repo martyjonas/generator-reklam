@@ -6,10 +6,27 @@ import streamlit as st
 st.set_page_config(
     page_title="AI Ad & Social Generator", page_icon="🚀", layout="wide"
 )
+
+# --- ÚPRAVA VZHLEDU KOPÍROVACÍCH RÁMEČKŮ (aby se dlouhé texty hezky zalamovaly) ---
+st.markdown(
+    """
+<style>
+div[data-testid="stCodeBlock"] pre, div[data-testid="stCode"] pre, pre, code {
+    white-space: pre-wrap !important;
+    word-wrap: break-word !important;
+    font-family: 'Source Sans Pro', sans-serif !important;
+    font-size: 16px !important;
+    line-height: 1.5 !important;
+}
+</style>
+""",
+    unsafe_allow_html=True,
+)
+
 st.title("🚀 Generátor reklam a příspěvků (Google, FB & Instagram)")
 st.write(
-    "Zadej URL adresu produktu nebo kategorie a získej hotové reklamní kampaně"
-    " i emotivní příspěvek na Instagram."
+    "Zadej URL adresu produktu nebo kategorie. Každý vygenerovaný text si můžeš"
+    " zkopírovat jedním kliknutím na ikonku v pravém rohu rámečku."
 )
 
 # --- AUTOMATICKÉ NAČTENÍ KLÍČE Z TREZORU (SECRETS) ---
@@ -91,20 +108,26 @@ def generate_ads(web_content, key):
         if m not in candidate_models:
             candidate_models.append(m)
 
-    # Zadání s přidanou 4. sekcí pro neplacený emotivní Instagram příspěvek
     prompt = f"""
     Jsi špičkový český PPC specialista, social media tvůrce a kreativní copywriter. Tvým úkolem je vytvořit vysoce konverzní reklamy a autentický obsah na sociální sítě na základě obsahu webové stránky.
     
     Zde je obsah webu:
     {web_content}
     
+     ZÁSADNÍ PRAVIDLO PRO FORMÁTOVÁNÍ (KOPÍROVACÍ TLAČÍTKA):
+    Každý jednotlivý reklamní text (každý z 10 nadpisů zvlášť, každý ze 4 popisů zvlášť, každý primární text, každý FB nadpis, každý FB popis i samotný Instagram text a hashtagy) MUSÍŠ uzavřít do vlastního samostatného bloku kódu pomocí trojitých zpětných uvozovek:
+    ```text
+    Zde bude pouze čistý text ke zkopírování
+    ```
+    Uvnitř bloku ```text ... ``` nesmí být žádné číslování (např. "1."), žádné uvozovky na začátku a na konci ani počet znaků – uvnitř bloku musí být POUZE čistý text, který uživatel jedním kliknutím zkopíruje a vloží rovnou do reklamního systému! Popisky (např. "Nadpis 1 (25 znaků):") piš vždy NAD daný blok.
+
     POSTUPUJ NÁSLEDOVNĚ:
     1. **Analýza (krátce):** Identifikuj, co se prodává, jaký hlavní problém to zákazníkovi řeší (vyhledávací záměr) a jaké jsou hlavní benefity (USP). Odhadni 5 hlavních klíčových slov, která lidé na Google v souvislosti s tímto produktem hledají.
     
     2. **Google Ads (Responzivní reklama ve vyhledávání):**
     Vytvoř texty, které přesně reagují na to, co lidé hledají. Zakomponuj odhadovaná klíčová slova. (V Google Ads nepoužívej emotikony).
-    - Vytvoř 10 nadpisů (STRIKTNÍ LIMIT: maximálně 30 znaků včetně mezer pro každý! Počítej znaky!).
-    - Vytvoř 4 popisy (STRIKTNÍ LIMIT: maximálně 90 znaků včetně mezer pro každý!).
+    - **10 nadpisů** (STRIKTNÍ LIMIT: maximálně 30 znaků včetně mezer pro každý! Každý nadpis dej do vlastního samostatného bloku ```text ... ``` a nad něj napiš číslo nadpisu a počet znaků).
+    - **4 popisy** (STRIKTNÍ LIMIT: maximálně 90 znaků včetně mezer pro každý! Každý popis dej do vlastního samostatného bloku ```text ... ``` a nad něj napiš číslo popisu a počet znaků).
     *Styl: Úderný, zaměřený na benefity, čísla, slevy, vyřešení problému a výzvu k akci (CTA).*
     
     3. **Facebook / Instagram PLACENÁ REKLAMA (S TEMATICKÝMI EMOTIKONY):**
@@ -115,7 +138,7 @@ def generate_ads(web_content, key):
     - **Varianta A (Rámec PAS - Problém, Agitace, Řešení):** Zaměř se na bolest/potřebu zákazníka a ukaž produkt jako ideální řešení.
     - **Varianta B (Zaměřeno na emoce / Lifestyle / Originalitu):** Vtipný, nebo velmi poutavý úhel pohledu.
     
-    U obou variant dodrž přesně tuto strukturu a pojmenování:
+    U obou variant dej každou z těchto 3 částí do vlastního samostatného bloku ```text ... ```:
     - **Primární text (HLAVNÍ TEXT NAD OBRÁZKEM – vidět jako první):** 
       * První věta (tzv. Hook) musí okamžitě zaujmout a obsahovat 1–2 tematické emotikony.
       * Následuje poutavý text a přehledný seznam hlavních benefitů, kde každá odrážka začíná tematickým emotikonem souvisejícím s produktem.
@@ -125,11 +148,10 @@ def generate_ads(web_content, key):
 
     4. **Organický (neplacený) příspěvek na Instagram (EMOCE, ZÁŽITEK, RITUÁL):**
     Vytvoř text pro běžný neplacený příspěvek na Instagram, který NEVYPADÁ jako reklama, ale jako inspirativní příspěvek.
-    - **Styl a tón:** Emotivní, lidský, hřejivý, nenásilný. Zboží propaguj nepřímo – skrze atmosféru, osobní rituál, zážitek, zpomalení v uspěchaném dni nebo radost z maličkostí. Čtenář musí dostat chuť tento pocit zažít.
-    - **Struktura příspěvku:**
-      * **Text příspěvku:** Začni atmosférickou první větou s tematickým emotikonem. Vykresli situaci nebo rituál, ve kterém produkt nenápadně a přirozeně hraje hlavní roli. Text člen do krátkých, vzdušných odstavců a vkusně ho doplň tematickými emotikony.
-      * **Zapojení sledujících (na konci textu):** Polož přirozenou, milou otázku do komentářů (např. jak vypadá jejich oblíbená chvilka pro sebe apod.) a přidej jemné nasměrování (např. "Pokud si chcete tenhle malý rituál dopřát také, odkaz najdete u nás v biu ✨").
-      * **Hashtagy:** Přidej blok 8–10 pečlivě vybraných českých hashtagů, které kombinují téma produktu, emoci a životní styl.
+    - **Styl a tón:** Emotivní, lidský, hřejivý, nenásilný. Zboží propaguj nepřímo – skrze atmosféru, osobní rituál, zážitek, zpomalení v uspěchaném dni nebo radost z maličkostí.
+    - **Struktura příspěvku (opět dej text příspěvku a hashtagy do samostatných bloků ```text ... ``` pro snadné kopírování):**
+      * **Text příspěvku (včetně zapojení sledujících na konci):** Začni atmosférickou první větou s tematickým emotikonem. Vykresli situaci nebo rituál, ve kterém produkt přirozeně hraje roli. Čleň do krátkých odstavců s tematickými emotikony. Na konec textu polož milou otázku do komentářů a jemné nasměrování na odkaz v biu ✨. (Celý tento text dej do jednoho bloku ```text ... ```).
+      * **Hashtagy:** Blok 8–10 pečlivě vybraných českých hashtagů (dej je do samostatného bloku ```text ... ```).
       * **📸 Tip na fotku nebo Reels:** Napiš 1–2 věty s konkrétním nápadem, jak produkt vyfotit nebo natočit v reálné situaci, aby vizuál dokonale ladil s touto emocí.
     
     Piš perfektní, přirozenou češtinou. Žádné strojové překlady typu "Odemkněte svůj potenciál".
@@ -181,5 +203,8 @@ if st.button("Vygenerovat kampaň ✨"):
                 if ads_result.startswith("❌"):
                     st.error(ads_result)
                 else:
-                    st.success("Hotovo! Zde jsou tvé kampaně a příspěvky:")
+                    st.success(
+                        "Hotovo! Najetím myší na libovolný šedý rámeček"
+                        " zobrazíš vpravo nahoře ikonku pro zkopírování:"
+                    )
                     st.markdown(ads_result)
