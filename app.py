@@ -13,7 +13,9 @@ st.write(
 )
 
 # --- ZADÁNÍ API KLÍČE A URL ---
-api_key = st.sidebar.text_input("Zadej svůj OpenAI API klíč:", type="password")
+api_key = st.sidebar.text_input(
+    "Zadej svůj Google AI Studio klíč:", type="password"
+)
 url = st.text_input(
     "URL adresa produktu/kategorie:", placeholder="https://www.TvujEshop.cz/..."
 )
@@ -26,22 +28,24 @@ def scrape_website(url):
         response = requests.get(url, headers=headers, timeout=10)
         soup = BeautifulSoup(response.content, "html.parser")
 
-        # Odstranění skriptů a stylů
         for script in soup(["script", "style", "nav", "footer"]):
             script.extract()
 
         text = soup.get_text(separator=" ")
-        # Vyčištění od prázdných znaků a zkrácení (kvůli limitům AI)
         lines = (line.strip() for line in text.splitlines())
         clean_text = " ".join(line for line in lines if line)
-        return clean_text[:8000]  # Bereme prvních 8000 znaků
+        return clean_text[:10000]
     except Exception as e:
         return f"Chyba při načítání webu: {e}"
 
 
-# --- FUNKCE PRO GENEROVÁNÍ REKLAM ---
+# --- FUNKCE PRO GENEROVÁNÍ REKLAM PŘES GOOGLE GEMINI ---
 def generate_ads(web_content, api_key):
-    client = OpenAI(api_key=api_key)
+    # Napojení na Google AI Studio
+    client = OpenAI(
+        api_key=api_key,
+        base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
+    )
 
     prompt = f"""
     Jsi seniorní PPC specialista a kreativní copywriter. Tvým úkolem je vytvořit vysoce konverzní, originální a poutavé reklamní texty na základě obsahu webové stránky.
@@ -49,7 +53,7 @@ def generate_ads(web_content, api_key):
     Zde je obsah webu:
     {web_content}
     
-    POSTUPUJ NÁSovně:
+    POSTUPUJ NÁSLEDOVNĚ:
     1. **Analýza (krátce):** Identifikuj, co se prodává, jaký hlavní problém to zákazníkovi řeší (vyhledávací záměr) a jaké jsou hlavní benefity (USP). Odhadni 5 hlavních klíčových slov, která lidé na Google v souvislosti s tímto produktem hledají.
     
     2. **Google Ads (Responzivní reklama ve vyhledávání):**
@@ -71,7 +75,7 @@ def generate_ads(web_content, api_key):
     """
 
     response = client.chat.completions.create(
-        model="gpt-4o",  # Doporučuji nejnovější model pro nejlepší češtinu a dodržení limitů
+        model="gemini-2.5-flash",
         messages=[
             {
                 "role": "system",
@@ -79,7 +83,7 @@ def generate_ads(web_content, api_key):
             },
             {"role": "user", "content": prompt},
         ],
-        temperature=0.7,  # Vyšší hodnota = větší kreativita
+        temperature=0.7,
     )
     return response.choices[0].message.content
 
@@ -87,7 +91,9 @@ def generate_ads(web_content, api_key):
 # --- HLAVNÍ LOGIKA APLIKACE ---
 if st.button("Vygenerovat kampaň ✨"):
     if not api_key:
-        st.warning("Prosím, zadej v levém panelu svůj OpenAI API klíč.")
+        st.warning(
+            "Prosím, zadej v levém panelu svůj Google AI Studio API klíč."
+        )
     elif not url:
         st.warning("Prosím, zadej URL adresu.")
     else:
