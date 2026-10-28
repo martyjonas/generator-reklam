@@ -1,5 +1,4 @@
 from bs4 import BeautifulSoup
-from openai import OpenAI
 import requests
 import streamlit as st
 
@@ -22,10 +21,19 @@ url = st.text_input(
 
 
 # --- FUNKCE PRO STAŽENÍ TEXTU Z WEBU ---
-def scrape_website(url):
+def scrape_website(target_url):
     try:
-        headers = {"User-Agent": "Mozilla/5.0"}
-        response = requests.get(url, headers=headers, timeout=10)
+        target_url = target_url.strip()
+        if not target_url.startswith("http"):
+            target_url = "https://" + target_url
+
+        headers = {
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+                " (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+            )
+        }
+        response = requests.get(target_url, headers=headers, timeout=15)
         soup = BeautifulSoup(response.content, "html.parser")
 
         for script in soup(["script", "style", "nav", "footer"]):
@@ -39,16 +47,50 @@ def scrape_website(url):
         return f"Chyba při načítání webu: {e}"
 
 
-# --- FUNKCE PRO GENEROVÁNÍ REKLAM PŘES GOOGLE GEMINI ---
-def generate_ads(web_content, api_key):
-    # Napojení na Google AI Studio
-    client = OpenAI(
-        api_key=api_key,
-        base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
-    )
+# --- FUNKCE PRO PŘÍMÉ NAPOJENÍ NA GOOGLE GEMINI ---
+def generate_ads(web_content, key):
+    key = key.strip()  # Odstranění případných mezer okolo klíče
 
+    # 1. Automatické zjištění dostupného modelu na tvém Google účtu
+    models_url = (
+        f"https://generativelanguage.googleapis.com/v1beta/models?key={key}"
+    )
+    models_resp = requests.get(models_url)
+
+    if models_resp.status_code != 200:
+        return (
+            "❌ Chyba API klíče: Google klíč nepřijal. Zkontroluj, zda začíná"
+            f" na AIza... (Detail: {models_resp.text})"
+        )
+
+    models_data = models_resp.json().get("models", [])
+    available_models = [
+        m["name"]
+        for m in models_data
+        if "generateContent" in m.get("supportedGenerationMethods", [])
+        and "gemini" in m["name"]
+    ]
+
+    # Výběr nejlepšího modelu, který máš k dispozici
+    preferred = [
+        "models/gemini-2.5-flash",
+        "models/gemini-2.0-flash",
+        "models/gemini-1.5-pro",
+        "models/gemini-1.5-flash",
+    ]
+    chosen_model = None
+    for p in preferred:
+        if p in available_models:
+            chosen_model = p
+            break
+    if not chosen_model and available_models:
+        chosen_model = available_models[0]
+    if not chosen_model:
+        return "❌ Na tvém Google účtu nebyl nalezen žádný textový model Gemini."
+
+    # 2. Zadání (Prompt) pro umělou inteligenci
     prompt = f"""
-    Jsi seniorní PPC specialista a kreativní copywriter. Tvým úkolem je vytvořit vysoce konverzní, originální a poutavé reklamní texty na základě obsahu webové stránky.
+    Jsi špičkový český PPC specialista a kreativní copywriter. Tvým úkolem je vytvořit vysoce konverzní, originální a poutavé reklamní texty na základě obsahu webové stránky.
     
     Zde je obsah webu:
     {web_content}
@@ -74,18 +116,24 @@ def generate_ads(web_content, api_key):
     Piš perfektní, přirozenou češtinou. Žádné strojové překlady typu "Odemkněte svůj potenciál".
     """
 
-    response = client.chat.completions.create(
-        model="gemini-2.5-flash",
-        messages=[
-            {
-                "role": "system",
-                "content": "Jsi špičkový český copywriter a marketingový stratég.",
-            },
-            {"role": "user", "content": prompt},
-        ],
-        temperature=0.7,
-    )
-    return response.choices[0].message.content
+    # 3. Odeslání požadavku přímo do Googlu
+    gen_url = f"https://generativelanguage.googleapis.com/v1beta/{chosen_model}:generateContent?key={key}"
+    payload = {
+        "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": {"temperature": 0.7},
+    }
+
+    response = requests.post(gen_url, json=payload, timeout=60)
+    if response.status_code != 200:
+        return (
+            f"❌ Chyba při generování ({response.status_code}): {response.text}"
+        )
+
+    data = response.json()
+    try:
+        return data["candidates"][0]["content"]["parts"][0]["text"]
+    except Exception:
+        return f"❌ Neočekávaná odpověď od Googlu: {data}"
 
 
 # --- HLAVNÍ LOGIKA APLIKACE ---
@@ -101,9 +149,12 @@ if st.button("Vygenerovat kampaň ✨"):
             "Analyzuji web, zkoumám psychologii zákazníků a píšu texty..."
         ):
             scraped_text = scrape_website(url)
-            if "Chyba" in scraped_text:
+            if scraped_text.startswith("Chyba"):
                 st.error(scraped_text)
             else:
                 ads_result = generate_ads(scraped_text, api_key)
-                st.success("Hotovo! Zde jsou tvé kampaně:")
-                st.markdown(ads_result)
+                if ads_result.startswith("❌"):
+                    st.error(ads_result)
+                else:
+                    st.success("Hotovo! Zde jsou tvé kampaně:")
+                    st.markdown(ads_result)
