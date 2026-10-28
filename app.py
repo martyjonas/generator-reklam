@@ -1,9 +1,12 @@
+import hashlib
+import json
+import os
 from bs4 import BeautifulSoup
 import requests
 import streamlit as st
 
 # ==============================================================================
-# 🎨 NASTAVENÍ ZNAČKY (Zde si můžeš kdykoliv změnit texty a licenční heslo)
+# 🎨 NASTAVENÍ ZNAČKY (Zde si můžeš kdykoliv změnit texty)
 # ==============================================================================
 NAZEV_APLIKACE = "AI Marketing Studio PRO"
 PODTITULEK_APLIKACE = (
@@ -12,14 +15,14 @@ PODTITULEK_APLIKACE = (
 )
 NAZEV_TVE_ZNACKY = "Martin Jonas Studio"  # Změň si na název svého e-shopu/značky
 ODKAZ_NA_TVUJ_WEB = "https://www.martinjonas.cz"  # Změň si na adresu svého webu
-LICENCNI_KOD_PRO_ZAKAZNIKY = (
-    "START2026"  # Heslo, které dáš zákazníkům po nákupu
+TAJNY_KLIC_LICENCI = (
+    "MOJE_TAJNA_SUL_2026"  # Tajné slovo pro tvorbu unikátních kódů
 )
 # ==============================================================================
 
 st.set_page_config(page_title=NAZEV_APLIKACE, page_icon="✨", layout="wide")
 
-# --- MODERNÍ PROFI DESIGN (CSS STYLOVÁNÍ) ---
+# --- MODERNÍ PROFI DESIGN (JEDNODUCHÉ ČISTÉ RÁMEČKY BEZ DVOJITÉ KONTURY) ---
 st.markdown(
     """
 <style>
@@ -48,16 +51,30 @@ footer {visibility: hidden;}
     font-weight: 400;
 }
 
-/* Vzhled kopírovacích rámečků */
-div[data-testid="stCodeBlock"] pre, div[data-testid="stCode"] pre, pre, code {
+/* JEDNODUCHÝ ČISTÝ RÁMEČEK (pouze vnější obal) */
+div[data-testid="stCodeBlock"] pre, div[data-testid="stCode"] pre {
     white-space: pre-wrap !important;
     word-wrap: break-word !important;
     font-family: 'Source Sans Pro', sans-serif !important;
     font-size: 16px !important;
     line-height: 1.55 !important;
     background-color: #f8fafc !important;
-    border: 1px solid #e2e8f0 !important;
+    border: 1px solid #cbd5e1 !important;
     border-radius: 10px !important;
+    padding: 14px 16px !important;
+    box-shadow: none !important;
+}
+
+/* Vnitřní text zcela BEZ druhého rámečku a bez pozadí */
+div[data-testid="stCodeBlock"] code, div[data-testid="stCode"] code, pre code {
+    white-space: pre-wrap !important;
+    word-wrap: break-word !important;
+    font-family: 'Source Sans Pro', sans-serif !important;
+    font-size: 16px !important;
+    background-color: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+    box-shadow: none !important;
 }
 
 /* Moderní velké tlačítko pro generování */
@@ -92,6 +109,96 @@ div.stButton > button:first-child:hover {
     unsafe_allow_html=True,
 )
 
+
+# --- SYSTÉM UNIKÁTNÍCH JEDNORÁZOVÝCH LICENCÍ ---
+LICENSE_DB_FILE = "activated_licenses.json"
+
+
+@st.cache_resource
+def get_activated_licenses():
+    if os.path.exists(LICENSE_DB_FILE):
+        try:
+            with open(LICENSE_DB_FILE, "r") as f:
+                return json.load(f)
+        except Exception:
+            return {}
+    return {}
+
+
+def save_activated_licenses(db):
+    try:
+        with open(LICENSE_DB_FILE, "w") as f:
+            json.dump(db, f)
+    except Exception:
+        pass
+
+
+def create_license_code(number_id):
+    body = f"{number_id:04d}"
+    signature = (
+        hashlib.sha256((body + TAJNY_KLIC_LICENCI).encode())
+        .hexdigest()[:3]
+        .upper()
+    )
+    return f"PRO-{body}-{signature}"
+
+
+def verify_and_lock_license(code, user_api_key):
+    code = code.strip().upper()
+    # 1. Kontrola, zda je kód pravý (má správný kryptografický podpis)
+    parts = code.split("-")
+    if len(parts) != 3 or parts[0] != "PRO" or not parts[1].isdigit():
+        return (
+            False,
+            (
+                "❌ Neplatný licenční kód. Zkontrolujte jeho zadání z"
+                " objednávky."
+            ),
+        )
+
+    expected_code = create_license_code(int(parts[1]))
+    if code != expected_code:
+        return (
+            False,
+            (
+                "❌ Neplatný licenční kód. Zkontrolujte jeho zadání z"
+                " objednávky."
+            ),
+        )
+
+    # 2. Pokud ještě nezadal API klíč, potvrdíme, že licenční kód je platný
+    if not user_api_key.strip():
+        return (
+            True,
+            "✅ Licenční kód je platný! Nyní níže vložte svůj Google API klíč.",
+        )
+
+    # 3. Kontrola spárování (1 licenční kód = 1 konkrétní Google API klíč)
+    key_hash = hashlib.sha256(user_api_key.strip().encode()).hexdigest()
+    db = get_activated_licenses()
+
+    if code not in db:
+        # První aktivace: uzamkneme tento kód k tomuto API klíči
+        db[code] = key_hash
+        save_activated_licenses(db)
+        return (
+            True,
+            "✅ Licence byla úspěšně aktivována a spárována s vaším klíčem!",
+        )
+    else:
+        # Kód už byl v minulosti aktivován – ověříme, zda jde o stejného zákazníka
+        if db[code] == key_hash:
+            return True, "✅ Licence je aktivní a ověřená!"
+        else:
+            return (
+                False,
+                (
+                    "❌ Tento licenční kód již byl aktivován jiným uživatelem a"
+                    " nelze jej použít podruhé!"
+                ),
+            )
+
+
 # --- VYKRESLENÍ HORNÍHO BANNERU ---
 st.markdown(
     f"""
@@ -103,7 +210,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# --- LEVÝ PANEL (SOUKROMÁ VERZE vs. ZÁKAZNICKÁ VERZE S LICENCÍ) ---
+# --- LEVÝ PANEL (SOUKROMÁ VERZE vs. ZÁKAZNICKÁ VERZE S UNIKÁTNÍ LICENCÍ) ---
 saved_key = ""
 try:
     if "GOOGLE_API_KEY" in st.secrets:
@@ -119,21 +226,29 @@ if saved_key:
     api_key = saved_key
     license_ok = True
     st.sidebar.success("🔑 VIP Majitelská verze: Klíč je aktivní!")
-else:
-    st.sidebar.subheader("1️⃣ Aktivace licence")
-    user_license = st.sidebar.text_input(
-        "Zadejte licenční kód z objednávky:",
-        type="password",
-        placeholder="Např. START2026",
-    )
 
-    if user_license.strip() == LICENCNI_KOD_PRO_ZAKAZNIKY:
-        license_ok = True
-        st.sidebar.success("✅ Licence úspěšně ověřena!")
-    else:
-        license_ok = False
-        if user_license:
-            st.sidebar.error("❌ Neplatný licenční kód.")
+    # Generátor unikátních kódů pouze pro tebe (majitele)
+    with st.sidebar.expander("🎟️ Generátor kódů pro zákazníky"):
+        st.write(
+            "Každému zákazníkovi pošli jeden unikátní kód. Po prvním použití se"
+            " kód uzamkne k jeho API klíči:"
+        )
+        batch_start = st.number_input(
+            "Od čísla zákazníka:", min_value=1, value=1, step=20
+        )
+        codes_list = "\n".join(
+            [
+                create_license_code(i)
+                for i in range(batch_start, batch_start + 20)
+            ]
+        )
+        st.code(codes_list, language="text")
+else:
+    st.sidebar.subheader("1️⃣ Aktivace vaší licence")
+    user_license = st.sidebar.text_input(
+        "Zadejte svůj unikátní licenční kód:",
+        placeholder="PRO-0001-...",
+    )
 
     st.sidebar.subheader("2️⃣ Váš Google AI klíč")
     api_key = st.sidebar.text_input(
@@ -142,7 +257,16 @@ else:
         placeholder="AIzaSy...",
     )
 
-    with st.sidebar.expander("❓ Jak získat klíč zdarma (za 1 minutu)?"):
+    if user_license:
+        license_ok, lic_msg = verify_and_lock_license(user_license, api_key)
+        if license_ok:
+            st.sidebar.success(lic_msg)
+        else:
+            st.sidebar.error(lic_msg)
+    else:
+        license_ok = False
+
+    with st.sidebar.expander("❓ Jak získat Google klíč zdarma (za 1 minutu)?"):
         st.markdown("""
         1. Otevřete **[Google AI Studio](https://aistudio.google.com/apikey)** a přihlaste se svým Google účtem.
         2. Klikněte na modré tlačítko **Create API key**.
@@ -151,8 +275,8 @@ else:
 
 st.sidebar.markdown("---")
 st.sidebar.info(
-    "💡 **Tip:** Po vygenerování kampaně stačí najet myší na libovolný text a"
-    " kliknout vpravo nahoře na ikonku 📋 pro zkopírování."
+    "💡 **Tip:** Po vygenerování kampaně stačí najet myší na libovolný rámeček"
+    " a kliknout vpravo nahoře na ikonku 📋 pro zkopírování."
 )
 
 # --- HLAVNÍ VSTUPNÍ FORMULÁŘ V KARTĚ ---
@@ -343,7 +467,7 @@ if generate_clicked:
     if not license_ok:
         st.error(
             "🔒 Pro spuštění generátoru zadejte prosím v levém panelu platný"
-            " licenční kód z vaší objednávky."
+            " unikátní licenční kód z vaší objednávky."
         )
     elif not api_key:
         st.warning(
