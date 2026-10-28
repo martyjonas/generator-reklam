@@ -4,11 +4,12 @@ import streamlit as st
 
 # --- NASTAVENÍ STRÁNKY ---
 st.set_page_config(
-    page_title="AI Ad Generator", page_icon="🚀", layout="wide"
+    page_title="AI Ad & Social Generator", page_icon="🚀", layout="wide"
 )
-st.title("🚀 Generátor konverzních reklam (Google & FB)")
+st.title("🚀 Generátor reklam a příspěvků (Google, FB & Instagram)")
 st.write(
-    "Zadej URL adresu produktu nebo kategorie a získej hotové reklamní kampaně."
+    "Zadej URL adresu produktu nebo kategorie a získej hotové reklamní kampaně"
+    " i emotivní příspěvek na Instagram."
 )
 
 # --- AUTOMATICKÉ NAČTENÍ KLÍČE Z TREZORU (SECRETS) ---
@@ -90,9 +91,9 @@ def generate_ads(web_content, key):
         if m not in candidate_models:
             candidate_models.append(m)
 
-    # Vylepšené zadání s důrazem na tematické emotikony a jasné popisky pozic
+    # Zadání s přidanou 4. sekcí pro neplacený emotivní Instagram příspěvek
     prompt = f"""
-    Jsi špičkový český PPC specialista a kreativní copywriter. Tvým úkolem je vytvořit vysoce konverzní, originální a poutavé reklamní texty na základě obsahu webové stránky.
+    Jsi špičkový český PPC specialista, social media tvůrce a kreativní copywriter. Tvým úkolem je vytvořit vysoce konverzní reklamy a autentický obsah na sociální sítě na základě obsahu webové stránky.
     
     Zde je obsah webu:
     {web_content}
@@ -101,14 +102,14 @@ def generate_ads(web_content, key):
     1. **Analýza (krátce):** Identifikuj, co se prodává, jaký hlavní problém to zákazníkovi řeší (vyhledávací záměr) a jaké jsou hlavní benefity (USP). Odhadni 5 hlavních klíčových slov, která lidé na Google v souvislosti s tímto produktem hledají.
     
     2. **Google Ads (Responzivní reklama ve vyhledávání):**
-    Vytvoř texty, které přesně reagují na to, co lidé hledají. Zakomponuj odhadovaná klíčová slova. (V Google Ads nepoužívej emotikony, Google je tam zakazuje).
+    Vytvoř texty, které přesně reagují na to, co lidé hledají. Zakomponuj odhadovaná klíčová slova. (V Google Ads nepoužívej emotikony).
     - Vytvoř 10 nadpisů (STRIKTNÍ LIMIT: maximálně 30 znaků včetně mezer pro každý! Počítej znaky!).
     - Vytvoř 4 popisy (STRIKTNÍ LIMIT: maximálně 90 znaků včetně mezer pro každý!).
     *Styl: Úderný, zaměřený na benefity, čísla, slevy, vyřešení problému a výzvu k akci (CTA).*
     
-    3. **Facebook / Instagram Ads (S TEMATICKÝMI EMOTIKONY):**
+    3. **Facebook / Instagram PLACENÁ REKLAMA (S TEMATICKÝMI EMOTIKONY):**
     Lidé na FB produkt aktivně nehledají, musíš je zastavit ve scrollování. Buď kreativní, originální, vyhni se klišé.
-    DŮLEŽITÉ PRO EMOTIKONY: Vyber emotikony, které PŘESNĚ tematicky sedí k danému produktu nebo oboru (např. u jídla, sportu, bydlení, kosmetiky, techniky atd.) a použij je pro vizuální oživení textu!
+    DŮLEŽITÉ PRO EMOTIKONY: Vyber emotikony, které PŘESNĚ tematicky sedí k danému produktu nebo oboru a použij je pro vizuální oživení textu!
     
     Vytvoř 2 varianty:
     - **Varianta A (Rámec PAS - Problém, Agitace, Řešení):** Zaměř se na bolest/potřebu zákazníka a ukaž produkt jako ideální řešení.
@@ -116,18 +117,27 @@ def generate_ads(web_content, key):
     
     U obou variant dodrž přesně tuto strukturu a pojmenování:
     - **Primární text (HLAVNÍ TEXT NAD OBRÁZKEM – vidět jako první):** 
-      * První věta (tzv. Hook) musí okamžitě zaujmout a obsahovat 1–2 tematické emotikony přímo na začátku nebo na konci věty.
+      * První věta (tzv. Hook) musí okamžitě zaujmout a obsahovat 1–2 tematické emotikony.
       * Následuje poutavý text a přehledný seznam hlavních benefitů, kde každá odrážka začíná tematickým emotikonem souvisejícím s produktem.
       * Na konci jasná výzva k akci (CTA) s emotikonem (např. 👉, 🛒).
-    - **Nadpis / Headline (TUČNÝ TEXT POD OBRÁZKEM vedle tlačítka - max 40 znaků):** Krátký, úderný benefit + přidej na začátek 1 výrazný tematický emotikon pro přitažení pozornosti.
-    - **Popis / Description (DOPLŇUJÍCÍ TEXT POD NADPISEM - max 30 znaků):** Krátký důkaz nebo výhoda s emotikonem (např. ⭐ Skladem, 🚚 Doprava zdarma, 🇨🇿 Česká výroba).
+    - **Nadpis / Headline (TUČNÝ TEXT POD OBRÁZKEM vedle tlačítka - max 40 znaků):** Krátký, úderný benefit + přidej na začátek 1 výrazný tematický emotikon.
+    - **Popis / Description (DOPLŇUJÍCÍ TEXT POD NADPISEM - max 30 znaků):** Krátký důkaz nebo výhoda s emotikonem (např. ⭐ Skladem, 🚚 Doprava zdarma).
+
+    4. **Organický (neplacený) příspěvek na Instagram (EMOCE, ZÁŽITEK, RITUÁL):**
+    Vytvoř text pro běžný neplacený příspěvek na Instagram, který NEVYPADÁ jako reklama, ale jako inspirativní příspěvek.
+    - **Styl a tón:** Emotivní, lidský, hřejivý, nenásilný. Zboží propaguj nepřímo – skrze atmosféru, osobní rituál, zážitek, zpomalení v uspěchaném dni nebo radost z maličkostí. Čtenář musí dostat chuť tento pocit zažít.
+    - **Struktura příspěvku:**
+      * **Text příspěvku:** Začni atmosférickou první větou s tematickým emotikonem. Vykresli situaci nebo rituál, ve kterém produkt nenápadně a přirozeně hraje hlavní roli. Text člen do krátkých, vzdušných odstavců a vkusně ho doplň tematickými emotikony.
+      * **Zapojení sledujících (na konci textu):** Polož přirozenou, milou otázku do komentářů (např. jak vypadá jejich oblíbená chvilka pro sebe apod.) a přidej jemné nasměrování (např. "Pokud si chcete tenhle malý rituál dopřát také, odkaz najdete u nás v biu ✨").
+      * **Hashtagy:** Přidej blok 8–10 pečlivě vybraných českých hashtagů, které kombinují téma produktu, emoci a životní styl.
+      * **📸 Tip na fotku nebo Reels:** Napiš 1–2 věty s konkrétním nápadem, jak produkt vyfotit nebo natočit v reálné situaci, aby vizuál dokonale ladil s touto emocí.
     
     Piš perfektní, přirozenou češtinou. Žádné strojové překlady typu "Odemkněte svůj potenciál".
     """
 
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {"temperature": 0.7},
+        "generationConfig": {"temperature": 0.75},
     }
 
     last_error = ""
@@ -171,5 +181,5 @@ if st.button("Vygenerovat kampaň ✨"):
                 if ads_result.startswith("❌"):
                     st.error(ads_result)
                 else:
-                    st.success("Hotovo! Zde jsou tvé kampaně:")
+                    st.success("Hotovo! Zde jsou tvé kampaně a příspěvky:")
                     st.markdown(ads_result)
