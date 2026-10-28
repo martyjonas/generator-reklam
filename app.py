@@ -11,10 +11,22 @@ st.write(
     "Zadej URL adresu produktu nebo kategorie a získej hotové reklamní kampaně."
 )
 
-# --- ZADÁNÍ API KLÍČE A URL ---
-api_key = st.sidebar.text_input(
-    "Zadej svůj Google AI Studio klíč:", type="password"
-)
+# --- AUTOMATICKÉ NAČTENÍ KLÍČE Z TREZORU (SECRETS) ---
+saved_key = ""
+try:
+    if "GOOGLE_API_KEY" in st.secrets:
+        saved_key = st.secrets["GOOGLE_API_KEY"]
+except Exception:
+    pass
+
+if saved_key:
+    api_key = saved_key
+    st.sidebar.success("🔑 API klíč je bezpečně uložen a připraven!")
+else:
+    api_key = st.sidebar.text_input(
+        "Zadej svůj Google AI Studio klíč:", type="password"
+    )
+
 url = st.text_input(
     "URL adresa produktu/kategorie:", placeholder="https://www.TvujEshop.cz/..."
 )
@@ -51,7 +63,6 @@ def scrape_website(target_url):
 def generate_ads(web_content, key):
     key = key.strip()
 
-    # 1. Načtení seznamu modelů z tvého Google účtu
     models_url = (
         f"https://generativelanguage.googleapis.com/v1beta/models?key={key}"
     )
@@ -71,7 +82,6 @@ def generate_ads(web_content, key):
         and "gemini" in m["name"]
     ]
 
-    # Prioritní seznam s nejnovějším modelem gemini-3.8-flash na prvním místě
     candidate_models = [
         "models/gemini-3.8-flash",
         "models/gemini-3.8-pro",
@@ -80,7 +90,7 @@ def generate_ads(web_content, key):
         if m not in candidate_models:
             candidate_models.append(m)
 
-    # 2. Zadání (Prompt) pro umělou inteligenci
+    # Vylepšené zadání s důrazem na tematické emotikony a jasné popisky pozic
     prompt = f"""
     Jsi špičkový český PPC specialista a kreativní copywriter. Tvým úkolem je vytvořit vysoce konverzní, originální a poutavé reklamní texty na základě obsahu webové stránky.
     
@@ -91,19 +101,26 @@ def generate_ads(web_content, key):
     1. **Analýza (krátce):** Identifikuj, co se prodává, jaký hlavní problém to zákazníkovi řeší (vyhledávací záměr) a jaké jsou hlavní benefity (USP). Odhadni 5 hlavních klíčových slov, která lidé na Google v souvislosti s tímto produktem hledají.
     
     2. **Google Ads (Responzivní reklama ve vyhledávání):**
-    Vytvoř texty, které přesně reagují na to, co lidé hledají. Zakomponuj odhadovaná klíčová slova.
+    Vytvoř texty, které přesně reagují na to, co lidé hledají. Zakomponuj odhadovaná klíčová slova. (V Google Ads nepoužívej emotikony, Google je tam zakazuje).
     - Vytvoř 10 nadpisů (STRIKTNÍ LIMIT: maximálně 30 znaků včetně mezer pro každý! Počítej znaky!).
     - Vytvoř 4 popisy (STRIKTNÍ LIMIT: maximálně 90 znaků včetně mezer pro každý!).
     *Styl: Úderný, zaměřený na benefity, čísla, slevy, vyřešení problému a výzvu k akci (CTA).*
     
-    3. **Facebook / Instagram Ads:**
+    3. **Facebook / Instagram Ads (S TEMATICKÝMI EMOTIKONY):**
     Lidé na FB produkt aktivně nehledají, musíš je zastavit ve scrollování. Buď kreativní, originální, vyhni se klišé.
-    - **Varianta A (Rámec PAS - Problém, Agitace, Řešení):** Zaměř se na bolest zákazníka a ukaž produkt jako záchranu.
-    - **Varianta B (Zaměřeno na emoce / Lifestyle / Originalitu):** Vtipný, nebo velmi poutavý úhel pohledu (tzv. Hook).
-    U obou variant napiš:
-    - Primární text (hlavní text příspěvku, použij odrážky a emoji s mírou).
-    - Nadpis (Headline - max 40 znaků, tučný text pod obrázkem).
-    - Popis (Description - max 30 znaků, doplňující text).
+    DŮLEŽITÉ PRO EMOTIKONY: Vyber emotikony, které PŘESNĚ tematicky sedí k danému produktu nebo oboru (např. u jídla, sportu, bydlení, kosmetiky, techniky atd.) a použij je pro vizuální oživení textu!
+    
+    Vytvoř 2 varianty:
+    - **Varianta A (Rámec PAS - Problém, Agitace, Řešení):** Zaměř se na bolest/potřebu zákazníka a ukaž produkt jako ideální řešení.
+    - **Varianta B (Zaměřeno na emoce / Lifestyle / Originalitu):** Vtipný, nebo velmi poutavý úhel pohledu.
+    
+    U obou variant dodrž přesně tuto strukturu a pojmenování:
+    - **Primární text (HLAVNÍ TEXT NAD OBRÁZKEM – vidět jako první):** 
+      * První věta (tzv. Hook) musí okamžitě zaujmout a obsahovat 1–2 tematické emotikony přímo na začátku nebo na konci věty.
+      * Následuje poutavý text a přehledný seznam hlavních benefitů, kde každá odrážka začíná tematickým emotikonem souvisejícím s produktem.
+      * Na konci jasná výzva k akci (CTA) s emotikonem (např. 👉, 🛒).
+    - **Nadpis / Headline (TUČNÝ TEXT POD OBRÁZKEM vedle tlačítka - max 40 znaků):** Krátký, úderný benefit + přidej na začátek 1 výrazný tematický emotikon pro přitažení pozornosti.
+    - **Popis / Description (DOPLŇUJÍCÍ TEXT POD NADPISEM - max 30 znaků):** Krátký důkaz nebo výhoda s emotikonem (např. ⭐ Skladem, 🚚 Doprava zdarma, 🇨🇿 Česká výroba).
     
     Piš perfektní, přirozenou češtinou. Žádné strojové překlady typu "Odemkněte svůj potenciál".
     """
@@ -113,7 +130,6 @@ def generate_ads(web_content, key):
         "generationConfig": {"temperature": 0.7},
     }
 
-    # 3. Odeslání požadavku (pokud by byl některý starší model nedostupný, automaticky zkusí další)
     last_error = ""
     for chosen_model in candidate_models:
         gen_url = f"https://generativelanguage.googleapis.com/v1beta/{chosen_model}:generateContent?key={key}"
@@ -128,7 +144,7 @@ def generate_ads(web_content, key):
         else:
             last_error = f"❌ Chyba ({response.status_code}) u modelu {chosen_model}: {response.text}"
             if response.status_code in [404, 400]:
-                continue  # Automaticky zkusí další model v pořadí
+                continue
             else:
                 break
 
