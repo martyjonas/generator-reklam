@@ -4,10 +4,10 @@ import streamlit as st
 
 # --- NASTAVENÍ STRÁNKY ---
 st.set_page_config(
-    page_title="AI Ad & Social Generator", page_icon="🚀", layout="wide"
+    page_title="AI Ad & Social Generator PRO", page_icon="🚀", layout="wide"
 )
 
-# --- ÚPRAVA VZHLEDU KOPÍROVACÍCH RÁMEČKŮ (aby se dlouhé texty hezky zalamovaly) ---
+# --- ÚPRAVA VZHLEDU KOPÍROVACÍCH RÁMEČKŮ ---
 st.markdown(
     """
 <style>
@@ -23,13 +23,13 @@ div[data-testid="stCodeBlock"] pre, div[data-testid="stCode"] pre, pre, code {
     unsafe_allow_html=True,
 )
 
-st.title("🚀 Generátor reklam a příspěvků (Google, FB & Instagram)")
+st.title("🚀 AI Generátor reklam a příspěvků (Google, FB & Instagram)")
 st.write(
-    "Zadej URL adresu produktu nebo kategorie. Každý vygenerovaný text si můžeš"
-    " zkopírovat jedním kliknutím na ikonku v pravém rohu rámečku."
+    "Vložte adresu produktu, zvolte tón komunikace a získejte hotové kampaně"
+    " připravené ke zkopírování jedním kliknutím."
 )
 
-# --- AUTOMATICKÉ NAČTENÍ KLÍČE Z TREZORU (SECRETS) ---
+# --- ROZLIŠENÍ SOUKROMÉ A VEŘEJNÉ VERZE (PODLE TREZORU SECRETS) ---
 saved_key = ""
 try:
     if "GOOGLE_API_KEY" in st.secrets:
@@ -39,15 +39,51 @@ except Exception:
 
 if saved_key:
     api_key = saved_key
-    st.sidebar.success("🔑 API klíč je bezpečně uložen a připraven!")
+    st.sidebar.success("🔑 Soukromá verze: API klíč je uložen a aktivní!")
 else:
+    st.sidebar.header("⚙️ Nastavení připojení")
     api_key = st.sidebar.text_input(
-        "Zadej svůj Google AI Studio klíč:", type="password"
+        "Vložte svůj Google AI API klíč:",
+        type="password",
+        placeholder="AIzaSy...",
+    )
+    with st.sidebar.expander(
+        "❓ Kde získat API klíč zdarma (za 1 minutu)?"
+    ):
+        st.markdown("""
+        1. Klikněte na **[Google AI Studio](https://aistudio.google.com/apikey)** a přihlaste se svým Google účtem.
+        2. Klikněte na modré tlačítko **Create API key**.
+        3. Zkopírujte vygenerovaný kód (začíná na `AIzaSy...`) a vložte ho do políčka výše.
+        """)
+
+# --- HLAVNÍ VSTUPNÍ FORMULÁŘ ---
+url = st.text_input(
+    "🔗 1. Webová adresa (URL) produktu nebo kategorie:",
+    placeholder="https://www.VasEshop.cz/produkt...",
+)
+
+col1, col2 = st.columns(2)
+
+with col1:
+    tone_of_voice = st.selectbox(
+        "🗣️ 2. Tón komunikace značky (Tone of Voice):",
+        [
+            "Přátelský a blízký (tykání)",
+            "Profesionální a důvěryhodný (vykání)",
+            "Luxusní, prémiový a exkluzivní (vykání)",
+            "Vtipný, hravý a originální (tykání)",
+            "Akční, naléhavý a čistě prodejní (vykání)",
+            "Jemný, empatický a pečující (vykání)",
+        ],
     )
 
-url = st.text_input(
-    "URL adresa produktu/kategorie:", placeholder="https://www.TvujEshop.cz/..."
-)
+with col2:
+    special_offer = st.text_input(
+        "🎁 3. Aktuální akce, sleva nebo výhoda (nepovinné):",
+        placeholder=(
+            "např. Sleva 15 % s kódem JARO15, Doprava zdarma, Dárek k nákupu..."
+        ),
+    )
 
 
 # --- FUNKCE PRO STAŽENÍ TEXTU Z WEBU ---
@@ -78,7 +114,7 @@ def scrape_website(target_url):
 
 
 # --- FUNKCE PRO PŘÍMÉ NAPOJENÍ NA GOOGLE GEMINI ---
-def generate_ads(web_content, key):
+def generate_ads(web_content, key, tone, offer):
     key = key.strip()
 
     models_url = (
@@ -88,8 +124,8 @@ def generate_ads(web_content, key):
 
     if models_resp.status_code != 200:
         return (
-            "❌ Chyba API klíče: Google klíč nepřijal. (Detail:"
-            f" {models_resp.text})"
+            "❌ Chyba API klíče: Google klíč nepřijal. Zkontrolujte, zda jste"
+            " ho zkopírovali celý a zda začíná na AIzaSy..."
         )
 
     models_data = models_resp.json().get("models", [])
@@ -108,13 +144,31 @@ def generate_ads(web_content, key):
         if m not in candidate_models:
             candidate_models.append(m)
 
+    # Zpracování speciální akce
+    if offer.strip():
+        offer_instruction = (
+            f"Uživatel zadal tuto speciální akci/výhodu: '{offer.strip()}'."
+            " Výrazně a přirozeně ji zakomponuj do nadpisů a popisů v Google"
+            " Ads, do obou variant Facebook reklamy (jako silný argument k"
+            " nákupu) a jemně ji zmiň i v závěru Instagram příspěvku!"
+        )
+    else:
+        offer_instruction = (
+            "Nebyla zadána žádná speciální akce, čerpej čistě z výhod a"
+            " informací na webu."
+        )
+
     prompt = f"""
     Jsi špičkový český PPC specialista, social media tvůrce a kreativní copywriter. Tvým úkolem je vytvořit vysoce konverzní reklamy a autentický obsah na sociální sítě na základě obsahu webové stránky.
     
     Zde je obsah webu:
     {web_content}
     
-     ZÁSADNÍ PRAVIDLO PRO FORMÁTOVÁNÍ (KOPÍROVACÍ TLAČÍTKA):
+    🎯 NASTAVENÍ KAMPANĚ OD UŽIVATELE (STRIKTNĚ DODRŽ!):
+    - **Požadovaný tón komunikace (Tone of Voice):** {tone}. Tomuto stylu, emocím a zvolenému tykání nebo vykání 100% přizpůsob úplně všechny generované texty!
+    - **Speciální akce / výhoda:** {offer_instruction}
+    
+    📋 ZÁSADNÍ PRAVIDLO PRO FORMÁTOVÁNÍ (KOPÍROVACÍ TLAČÍTKA):
     Každý jednotlivý reklamní text (každý z 10 nadpisů zvlášť, každý ze 4 popisů zvlášť, každý primární text, každý FB nadpis, každý FB popis i samotný Instagram text a hashtagy) MUSÍŠ uzavřít do vlastního samostatného bloku kódu pomocí trojitých zpětných uvozovek:
     ```text
     Zde bude pouze čistý text ke zkopírování
@@ -125,32 +179,31 @@ def generate_ads(web_content, key):
     1. **Analýza (krátce):** Identifikuj, co se prodává, jaký hlavní problém to zákazníkovi řeší (vyhledávací záměr) a jaké jsou hlavní benefity (USP). Odhadni 5 hlavních klíčových slov, která lidé na Google v souvislosti s tímto produktem hledají.
     
     2. **Google Ads (Responzivní reklama ve vyhledávání):**
-    Vytvoř texty, které přesně reagují na to, co lidé hledají. Zakomponuj odhadovaná klíčová slova. (V Google Ads nepoužívej emotikony).
+    Vytvoř texty v nastaveném tónu komunikace ({tone}), které přesně reagují na to, co lidé hledají. Zakomponuj odhadovaná klíčová slova a případnou speciální akci. (V Google Ads nepoužívej emotikony).
     - **10 nadpisů** (STRIKTNÍ LIMIT: maximálně 30 znaků včetně mezer pro každý! Každý nadpis dej do vlastního samostatného bloku ```text ... ``` a nad něj napiš číslo nadpisu a počet znaků).
     - **4 popisy** (STRIKTNÍ LIMIT: maximálně 90 znaků včetně mezer pro každý! Každý popis dej do vlastního samostatného bloku ```text ... ``` a nad něj napiš číslo popisu a počet znaků).
-    *Styl: Úderný, zaměřený na benefity, čísla, slevy, vyřešení problému a výzvu k akci (CTA).*
     
     3. **Facebook / Instagram PLACENÁ REKLAMA (S TEMATICKÝMI EMOTIKONY):**
-    Lidé na FB produkt aktivně nehledají, musíš je zastavit ve scrollování. Buď kreativní, originální, vyhni se klišé.
+    Lidé na FB produkt aktivně nehledají, musíš je zastavit ve scrollování. Piš ve zvoleném tónu ({tone}).
     DŮLEŽITÉ PRO EMOTIKONY: Vyber emotikony, které PŘESNĚ tematicky sedí k danému produktu nebo oboru a použij je pro vizuální oživení textu!
     
     Vytvoř 2 varianty:
     - **Varianta A (Rámec PAS - Problém, Agitace, Řešení):** Zaměř se na bolest/potřebu zákazníka a ukaž produkt jako ideální řešení.
-    - **Varianta B (Zaměřeno na emoce / Lifestyle / Originalitu):** Vtipný, nebo velmi poutavý úhel pohledu.
+    - **Varianta B (Zaměřeno na emoce / Lifestyle / Originalitu):** Poutavý úhel pohledu přesně v duchu zvoleného tónu komunikace.
     
     U obou variant dej každou z těchto 3 částí do vlastního samostatného bloku ```text ... ```:
     - **Primární text (HLAVNÍ TEXT NAD OBRÁZKEM – vidět jako první):** 
       * První věta (tzv. Hook) musí okamžitě zaujmout a obsahovat 1–2 tematické emotikony.
-      * Následuje poutavý text a přehledný seznam hlavních benefitů, kde každá odrážka začíná tematickým emotikonem souvisejícím s produktem.
+      * Následuje poutavý text a přehledný seznam hlavních benefitů (včetně případné speciální akce), kde každá odrážka začíná tematickým emotikonem souvisejícím s produktem.
       * Na konci jasná výzva k akci (CTA) s emotikonem (např. 👉, 🛒).
-    - **Nadpis / Headline (TUČNÝ TEXT POD OBRÁZKEM vedle tlačítka - max 40 znaků):** Krátký, úderný benefit + přidej na začátek 1 výrazný tematický emotikon.
+    - **Nadpis / Headline (TUČNÝ TEXT POD OBRÁZKEM vedle tlačítka - max 40 znaků):** Krátký, úderný benefit nebo akce + přidej na začátek 1 výrazný tematický emotikon.
     - **Popis / Description (DOPLŇUJÍCÍ TEXT POD NADPISEM - max 30 znaků):** Krátký důkaz nebo výhoda s emotikonem (např. ⭐ Skladem, 🚚 Doprava zdarma).
 
     4. **Organický (neplacený) příspěvek na Instagram (EMOCE, ZÁŽITEK, RITUÁL):**
-    Vytvoř text pro běžný neplacený příspěvek na Instagram, který NEVYPADÁ jako reklama, ale jako inspirativní příspěvek.
-    - **Styl a tón:** Emotivní, lidský, hřejivý, nenásilný. Zboží propaguj nepřímo – skrze atmosféru, osobní rituál, zážitek, zpomalení v uspěchaném dni nebo radost z maličkostí.
+    Vytvoř text pro běžný neplacený příspěvek na Instagram, který NEVYPADÁ jako reklama, ale jako inspirativní příspěvek (respektuj tykání/vykání ze zvoleného tónu: {tone}).
+    - **Styl a tón:** Emotivní, lidský, nenásilný. Zboží propaguj nepřímo – skrze atmosféru, osobní rituál, zážitek, zpomalení v uspěchaném dni nebo radost z maličkostí.
     - **Struktura příspěvku (opět dej text příspěvku a hashtagy do samostatných bloků ```text ... ``` pro snadné kopírování):**
-      * **Text příspěvku (včetně zapojení sledujících na konci):** Začni atmosférickou první větou s tematickým emotikonem. Vykresli situaci nebo rituál, ve kterém produkt přirozeně hraje roli. Čleň do krátkých odstavců s tematickými emotikony. Na konec textu polož milou otázku do komentářů a jemné nasměrování na odkaz v biu ✨. (Celý tento text dej do jednoho bloku ```text ... ```).
+      * **Text příspěvku (včetně zapojení sledujících na konci):** Začni atmosférickou první větou s tematickým emotikonem. Vykresli situaci nebo rituál, ve kterém produkt přirozeně hraje roli. Čleň do krátkých odstavců s tematickými emotikony. Na konec textu polož milou otázku do komentářů a jemné nasměrování na odkaz v biu ✨ (případně nenásilně zmiň probíhající akci). (Celý tento text dej do jednoho bloku ```text ... ```).
       * **Hashtagy:** Blok 8–10 pečlivě vybraných českých hashtagů (dej je do samostatného bloku ```text ... ```).
       * **📸 Tip na fotku nebo Reels:** Napiš 1–2 věty s konkrétním nápadem, jak produkt vyfotit nebo natočit v reálné situaci, aby vizuál dokonale ladil s touto emocí.
     
@@ -184,27 +237,30 @@ def generate_ads(web_content, key):
 
 
 # --- HLAVNÍ LOGIKA APLIKACE ---
-if st.button("Vygenerovat kampaň ✨"):
+if st.button("Vygenerovat kampaň ✨", type="primary"):
     if not api_key:
         st.warning(
-            "Prosím, zadej v levém panelu svůj Google AI Studio API klíč."
+            "Prosím, vložte v levém panelu svůj Google AI API klíč (návod"
+            " najdete přímo pod políčkem)."
         )
     elif not url:
-        st.warning("Prosím, zadej URL adresu.")
+        st.warning("Prosím, zadejte webovou adresu (URL) produktu.")
     else:
         with st.spinner(
-            "Analyzuji web, zkoumám psychologii zákazníků a píšu texty..."
+            "Analyzuji web, nastavuji zvolený tón komunikace a píšu texty..."
         ):
             scraped_text = scrape_website(url)
             if scraped_text.startswith("Chyba"):
                 st.error(scraped_text)
             else:
-                ads_result = generate_ads(scraped_text, api_key)
+                ads_result = generate_ads(
+                    scraped_text, api_key, tone_of_voice, special_offer
+                )
                 if ads_result.startswith("❌"):
                     st.error(ads_result)
                 else:
                     st.success(
-                        "Hotovo! Najetím myší na libovolný šedý rámeček"
-                        " zobrazíš vpravo nahoře ikonku pro zkopírování:"
+                        "Hotovo! Najetím myší na libovolný rámeček zobrazíte"
+                        " vpravo nahoře ikonku 📋 pro zkopírování:"
                     )
                     st.markdown(ads_result)
