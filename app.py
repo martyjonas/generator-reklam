@@ -9,11 +9,9 @@ import streamlit as st
 # 🎨 NASTAVENÍ ZNAČKY (Nadčasové nastavení nezávislé na e-shopu)
 # ==============================================================================
 NAZEV_APLIKACE = "AI Marketing Studio PRO"
-PODTITULEK_APLIKACE = "Chytrý generátor vysoce konverzních reklam pro Google, Facebook a Instagram"
-NAZEV_TVE_ZNACKY = "AI Marketing Studio"  # Můžeš ponechat univerzální nebo dát své jméno/značku
-TAJNY_KLIC_LICENCI = (
-    "MOJE_TAJNA_SUL_2026"  # Tajné slovo pro tvorbu unikátních kódů
-)
+PODTITULEK_APLIKACE = "Chytrý generátor klíčových slov a vysoce konverzních reklam pro Google, FB a Instagram"
+NAZEV_TVE_ZNACKY = "AI Marketing Studio"
+TAJNY_KLIC_LICENCI = "MOJE_TAJNA_SUL_2026"
 # ==============================================================================
 
 st.set_page_config(page_title=NAZEV_APLIKACE, page_icon="✨", layout="wide")
@@ -280,7 +278,7 @@ with st.container(border=True):
     col1, col2, col3 = st.columns(3)
     with col1:
         target_language = st.selectbox(
-            "🌍 2. Jazyk výsledné kampaně:",
+            "🌍 2. Jazyk výsledné kampaně a klíčových slov:",
             [
                 "🇨🇿 Čeština",
                 "🇸🇰 Slovenština",
@@ -384,33 +382,44 @@ def generate_ads(web_content, key, lang, tone, offer):
         )
 
     prompt = f"""
-    Jsi špičkový mezinárodní PPC specialista, social media tvůrce a kreativní copywriter. Tvým úkolem je vytvořit vysoce konverzní reklamy a autentický obsah na sociální sítě na základě obsahu webové stránky.
+    Jsi špičkový mezinárodní PPC specialista, SEO analytik, social media tvůrce a kreativní copywriter. Tvým úkolem je vytvořit analýzu klíčových slov, vysoce konverzní reklamy a autentický obsah na sociální sítě na základě obsahu webové stránky.
     
     Zde je obsah webu:
     {web_content}
     
     🎯 NASTAVENÍ KAMPANĚ OD UŽIVATELE (STRIKTNĚ DODRŽ!):
-    - **Cílový jazyk vygenerovaných reklam:** {lang}.
-      DŮLEŽITÉ PRAVIDLO PRO JAZYK: Úvodní analýzu (bod 1), orientační nadpisy sekcí, počty znaků nad rámečky a tip na fotku piš vždy ČESKY (aby se český uživatel v přehledu snadno orientoval). Ale **VEŠKERÉ SAMOTNÉ REKLAMNÍ TEXTY UVNITŘ KOPÍROVACÍCH RÁMEČKŮ (Google Ads nadpisy a popisy, hledaná klíčová slova, Facebook reklamy, Instagram příspěvek i hashtagy) piš v perfektním jazyce {lang} na úrovni rodilého mluvčího dané země!**
+    - **Cílový jazyk a země vygenerovaných reklam a klíčových slov:** {lang}.
+      DŮLEŽITÉ PRAVIDLO PRO JAZYK: Úvodní analýzu trhu (bod 1), orientační nadpisy sekcí, počty znaků nad rámečky a tip na fotku piš vždy ČESKY (aby se český uživatel v přehledu snadno orientoval). Ale **VEŠKERÁ KLÍČOVÁ SLOVA A SAMOTNÉ REKLAMNÍ TEXTY UVNITŘ KOPÍROVACÍCH RÁMEČKŮ (klíčová slova v bodu 2, Google Ads nadpisy a popisy, Facebook reklamy, Instagram příspěvek i hashtagy) piš v perfektním jazyce {lang} na úrovni rodilého mluvčího a podle reálného vyhledávacího chování lidí v dané zemi!**
     - **Požadovaný tón komunikace (Tone of Voice):** {tone}. Tomuto stylu, emocím a zvolenému tykání nebo vykání (podle zvyklostí jazyka {lang}) 100% přizpůsob všechny generované reklamní texty!
     - **Speciální akce / výhoda:** {offer_instruction}
     
     📋 ZÁSADNÍ PRAVIDLO PRO FORMÁTOVÁNÍ (KOPÍROVACÍ TLAČÍTKA):
-    Každý jednotlivý reklamní text (každý z 10 nadpisů zvlášť, každý ze 4 popisů zvlášť, každý primární text, každý FB nadpis, každý FB popis i samotný Instagram text a hashtagy) MUSÍŠ uzavřít do vlastního samostatného bloku kódu pomocí trojitých zpětných uvozovek:
+    Každý seznam klíčových slov a každý jednotlivý reklamní text (každý z 10 nadpisů zvlášť, každý ze 4 popisů zvlášť, každý primární text, každý FB nadpis, každý FB popis i samotný Instagram text a hashtagy) MUSÍŠ uzavřít do vlastního samostatného bloku kódu pomocí trojitých zpětných uvozovek:
     ```text
     Zde bude pouze čistý text ke zkopírování v jazyce {lang}
     ```
-    Uvnitř bloku ```text ... ``` nesmí být žádné číslování (např. "1."), žádné uvozovky na začátku a na konci ani počet znaků – uvnitř bloku musí být POUZE čistý reklamní text v jazyce {lang}, který uživatel jedním kliknutím zkopíruje a vloží rovnou do reklamního systému! Popisky (např. "Nadpis 1 (25 znaků):") piš vždy česky NAD daný blok.
+    Uvnitř bloku ```text ... ``` nesmí být žádné číslování (např. "1."), žádné odrážky, žádné uvozovky ani české překlady – uvnitř bloku musí být POUZE čistý text v jazyce {lang}, který uživatel jedním kliknutím zkopíruje a vloží rovnou do reklamního systému!
 
-    POSTUPUJ NÁSLEDOVNĚ:
-    1. **📊 Analýza produktu a klíčových slov (krátce):** Česky shrň, co se prodává, jaký hlavní problém to zákazníkovi řeší a jaké jsou hlavní benefity (USP). Následně vypiš 5 hlavních klíčových slov přímo v cílovém jazyce ({lang}), která lidé v dané zemi na Google hledají.
+    POSTUPUJ PŘESNĚ PODLE TĚCHTO 5 SEKCI:
+
+    ### 📊 1. Analýza produktu a trhu
+    Česky stručně a přehledně shrň:
+    - Co přesně se prodává a kdo je ideální zákazník.
+    - Jaký hlavní problém nebo touhu zákazníkovi produkt řeší (nákupní motivace).
+    - Hlavní prodejní argumenty (USP), které prodávají.
+
+    ### 🔑 2. Nejhledanější a nejkonverznější klíčová slova (pro trh: {lang})
+    Vytvoř 3 samostatné kopírovací bloky ```text ... ``` (uvnitř každého bloku piš klíčová slova v jazyce {lang} pod sebe, každé slovo/frázi na nový řádek, bez odrážek a bez číslování, připravené k přímému vložení do Google Ads):
+    - **🔥 Hlavní nejhledanější a vysoce konverzní klíčová slova (10–12 frází v jazyce {lang}):** Fráze s nejvyšším nákupním záměrem, které lidé v dané zemi zadávají do vyhledávače, když chtějí produkt koupit. (Dej do samostatného bloku ```text ... ```).
+    - **🎯 Specifické "Long-tail" fráze s vysokou konverzí a levnějším proklikem (8–10 frází v jazyce {lang}):** Konkrétnější víceslovné dotazy zákazníků, kteří už přesně vědí, co hledají. (Dej do samostatného bloku ```text ... ```).
+    - **🚫 Doporučená vylučující klíčová slova / Negative Keywords (6–8 slov v jazyce {lang}):** Slova v jazyce {lang} (např. ekvivalenty slov bazar, zdarma, levně, návod, diskuze apod. relevantní k oboru), která by měl inzerent vyloučit, aby neutrácel za neplatící návštěvníky. (Dej do samostatného bloku ```text ... ```).
     
-    2. **🔍 Google Ads (Responzivní reklama ve vyhledávání – v jazyce {lang}):**
-    Vytvoř texty v jazyce {lang} a v nastaveném tónu komunikace ({tone}), které přesně reagují na to, co lidé hledají. Zakomponuj klíčová slova a případnou speciální akci. (V Google Ads nepoužívej emotikony).
+    ### 🔍 3. Google Ads (Responzivní reklama ve vyhledávání – v jazyce {lang})
+    Vytvoř texty v jazyce {lang} a v nastaveném tónu komunikace ({tone}), které přímo využívají nejkonverznější klíčová slova z bodu 2 a případnou speciální akci. (V Google Ads nepoužívej emotikony).
     - **10 nadpisů v jazyce {lang}** (STRIKTNÍ LIMIT: maximálně 30 znaků včetně mezer pro každý v jazyce {lang}! Každý nadpis dej do vlastního samostatného bloku ```text ... ``` a nad něj napiš česky číslo nadpisu a počet znaků).
     - **4 popisy v jazyce {lang}** (STRIKTNÍ LIMIT: maximálně 90 znaků včetně mezer pro každý v jazyce {lang}! Každý popis dej do vlastního samostatného bloku ```text ... ``` a nad něj napiš česky číslo popisu a počet znaků).
     
-    3. **📱 Facebook / Instagram PLACENÁ REKLAMA (S TEMATICKÝMI EMOTIKONY – v jazyce {lang}):**
+    ### 📱 4. Facebook / Instagram PLACENÁ REKLAMA (S TEMATICKÝMI EMOTIKONY – v jazyce {lang})
     Lidé na FB produkt aktivně nehledají, musíš je zastavit ve scrollování. Piš v jazyce {lang} a ve zvoleném tónu ({tone}).
     DŮLEŽITÉ PRO EMOTIKONY: Vyber emotikony, které PŘESNĚ tematicky sedí k danému produktu nebo oboru a použij je pro vizuální oživení textu!
     
@@ -426,7 +435,7 @@ def generate_ads(web_content, key, lang, tone, offer):
     - **Nadpis / Headline (TUČNÝ TEXT POD OBRÁZKEM vedle tlačítka - max 40 znaků):** Krátký, úderný benefit nebo akce v jazyce {lang} + přidej na začátek 1 výrazný tematický emotikon.
     - **Popis / Description (DOPLŇUJÍCÍ TEXT POD NADPISEM - max 30 znaků):** Krátký důkaz nebo výhoda v jazyce {lang} s emotikonem.
 
-    4. **📸 Organický (neplacený) příspěvek na Instagram (EMOCE, ZÁŽITEK, RITUÁL – v jazyce {lang}):**
+    ### 📸 5. Organický (neplacený) příspěvek na Instagram (EMOCE, ZÁŽITEK, RITUÁL – v jazyce {lang})
     Vytvoř text v jazyce {lang} pro běžný neplacený příspěvek na Instagram, který NEVYPADÁ jako reklama, ale jako inspirativní příspěvek.
     - **Styl a tón:** Emotivní, lidský, nenásilný. Zboží propaguj nepřímo – skrze atmosféru, osobní rituál, zážitek, zpomalení v uspěchaném dni nebo radost z maličkostí.
     - **Struktura příspěvku (opět dej text příspěvku a hashtagy do samostatných bloků ```text ... ``` pro snadné kopírování):**
@@ -434,7 +443,7 @@ def generate_ads(web_content, key, lang, tone, offer):
       * **Hashtagy v jazyce {lang}:** Blok 8–10 pečlivě vybraných hashtagů v jazyce {lang} (dej je do samostatného bloku ```text ... ```).
       * **🎬 Tip na fotku nebo Reels (česky):** Napiš česky 1–2 věty s konkrétním nápadem, jak produkt vyfotit nebo natočit v reálné situaci, aby vizuál dokonale ladil s touto emocí.
     
-    Piš naprosto přirozeně v jazyce {lang}, jako rodilý copywriter dané země. Žádné strojové překlady!
+    Piš naprosto přirozeně v jazyce {lang}, jako rodilý copywriter a SEO specialista dané země. Žádné strojové překlady!
     """
 
     payload = {
@@ -479,8 +488,8 @@ if generate_clicked:
         st.warning("🔗 Prosím, zadejte webovou adresu (URL) produktu.")
     else:
         with st.spinner(
-            "⏳ Analyzuji web, překládám kontext do jazyka"
-            f" {target_language} a tvořím kampaň..."
+            "⏳ Analyzuji web, hledám nejkonverznější klíčová slova ("
+            f"{target_language}) a tvořím kampaň..."
         ):
             scraped_text = scrape_website(url)
             if scraped_text.startswith("Chyba"):
@@ -497,9 +506,10 @@ if generate_clicked:
                     st.error(ads_result)
                 else:
                     st.success(
-                        f"✅ Kampaň ({target_language}) je připravena! Najetím"
-                        " myší na libovolný rámeček zobrazíte vpravo nahoře"
-                        " ikonku 📋 pro zkopírování:"
+                        f"✅ Kompletní kampaň i analýza klíčových slov ("
+                        f"{target_language}) je připravena! Najetím myší na"
+                        " libovolný rámeček zobrazíte ikonku 📋 pro"
+                        " zkopírování:"
                     )
                     st.markdown(ads_result)
 
