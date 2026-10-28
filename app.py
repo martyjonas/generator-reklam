@@ -6,7 +6,7 @@ import requests
 import streamlit as st
 
 # ==============================================================================
-# 🎨 NASTAVENÍ ZNAČKY (Nadčasové nastavení nezávislé na e-shopu)
+# 🎨 NASTAVENÍ ZNAČKY
 # ==============================================================================
 NAZEV_APLIKACE = "AI Marketing Studio PRO"
 PODTITULEK_APLIKACE = "Chytrý generátor klíčových slov a vysoce konverzních reklam pro Google, FB a Instagram"
@@ -16,12 +16,16 @@ TAJNY_KLIC_LICENCI = "MOJE_TAJNA_SUL_2026"
 
 st.set_page_config(page_title=NAZEV_APLIKACE, page_icon="✨", layout="wide")
 
-# --- MODERNÍ PROFI DESIGN (JEDNODUCHÉ ČISTÉ RÁMEČKY BEZ DVOJITÉ KONTURY) ---
+# --- MODERNÍ PROFI DESIGN + SKRYTÍ RUŠIVÝCH PRVKŮ STREAMLITU ---
 st.markdown(
     """
 <style>
-/* Skrytí výchozí patičky Streamlitu */
+/* Skrytí horní lišty, menu a patičky Streamlitu */
+#MainMenu {visibility: hidden;}
+header {visibility: hidden;}
 footer {visibility: hidden;}
+.stAppDeployButton {display: none;}
+div[data-testid="stStatusWidget"] {visibility: hidden;}
 
 /* Horní luxusní banner s barevným přechodem */
 .hero-banner {
@@ -199,11 +203,14 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# --- LEVÝ PANEL (SOUKROMÁ VERZE vs. ZÁKAZNICKÁ VERZE S UNIKÁTNÍ LICENCÍ) ---
+# --- LEVÝ PANEL (CHRÁNĚNÁ VIP VERZE vs. ZÁKAZNICKÁ VERZE) ---
 saved_key = ""
+admin_secret_pass = ""
 try:
     if "GOOGLE_API_KEY" in st.secrets:
         saved_key = st.secrets["GOOGLE_API_KEY"]
+    if "ADMIN_HESLO" in st.secrets:
+        admin_secret_pass = st.secrets["ADMIN_HESLO"]
 except Exception:
     pass
 
@@ -212,26 +219,47 @@ st.sidebar.caption(f"Profesionální edice | {NAZEV_TVE_ZNACKY}")
 st.sidebar.markdown("---")
 
 if saved_key:
-    api_key = saved_key
-    license_ok = True
-    st.sidebar.success("🔑 VIP Majitelská verze: Klíč je aktivní!")
+    # Jsme ve VIP aplikaci -> Vyžadujeme heslo majitele, aby ji nemohl použít nikdo cizí!
+    st.sidebar.subheader("🔐 Přihlášení majitele")
+    entered_admin_pass = st.sidebar.text_input(
+        "Zadejte majitelské heslo:", type="password"
+    )
 
-    with st.sidebar.expander("🎟️ Generátor kódů pro zákazníky"):
-        st.write(
-            "Každému zákazníkovi pošli jeden unikátní kód. Po prvním použití se"
-            " kód uzamkne k jeho API klíči:"
-        )
-        batch_start = st.number_input(
-            "Od čísla zákazníka:", min_value=1, value=1, step=20
-        )
-        codes_list = "\n".join(
-            [
-                create_license_code(i)
-                for i in range(batch_start, batch_start + 20)
-            ]
-        )
-        st.code(codes_list, language="text")
+    # Pokud máš v Secrets nastavené ADMIN_HESLO, kontroluje se proti němu
+    expected_pass = admin_secret_pass if admin_secret_pass else "Admin2026"
+
+    if entered_admin_pass == expected_pass:
+        api_key = saved_key
+        license_ok = True
+        st.sidebar.success("🔑 VIP Majitelská verze je odemčena!")
+
+        with st.sidebar.expander("🎟️ Generátor kódů pro zákazníky"):
+            st.write(
+                "Každému zákazníkovi pošli jeden unikátní kód. Po prvním"
+                " použití se kód uzamkne k jeho API klíči:"
+            )
+            batch_start = st.number_input(
+                "Od čísla zákazníka:", min_value=1, value=1, step=20
+            )
+            codes_list = "\n".join(
+                [
+                    create_license_code(i)
+                    for i in range(batch_start, batch_start + 20)
+                ]
+            )
+            st.code(codes_list, language="text")
+    else:
+        api_key = ""
+        license_ok = False
+        if entered_admin_pass:
+            st.sidebar.error("❌ Nesprávné majitelské heslo.")
+        else:
+            st.sidebar.info(
+                "🔒 Tato VIP instance je soukromá. Pro odemčení zadejte heslo"
+                " majitele."
+            )
 else:
+    # Jsme v Zákaznické verzi
     st.sidebar.subheader("1️⃣ Aktivace vaší licence")
     user_license = st.sidebar.text_input(
         "Zadejte svůj unikátní licenční kód:",
@@ -476,8 +504,8 @@ def generate_ads(web_content, key, lang, tone, offer):
 if generate_clicked:
     if not license_ok:
         st.error(
-            "🔒 Pro spuštění generátoru zadejte prosím v levém panelu platný"
-            " unikátní licenční kód z vaší objednávky."
+            "🔒 Pro spuštění generátoru se prosím nejprve autorizujte v levém"
+            " panelu."
         )
     elif not api_key:
         st.warning(
