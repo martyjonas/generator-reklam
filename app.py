@@ -49,9 +49,9 @@ def scrape_website(target_url):
 
 # --- FUNKCE PRO PŘÍMÉ NAPOJENÍ NA GOOGLE GEMINI ---
 def generate_ads(web_content, key):
-    key = key.strip()  # Odstranění případných mezer okolo klíče
+    key = key.strip()
 
-    # 1. Automatické zjištění dostupného modelu na tvém Google účtu
+    # 1. Načtení seznamu modelů z tvého Google účtu
     models_url = (
         f"https://generativelanguage.googleapis.com/v1beta/models?key={key}"
     )
@@ -59,8 +59,8 @@ def generate_ads(web_content, key):
 
     if models_resp.status_code != 200:
         return (
-            "❌ Chyba API klíče: Google klíč nepřijal. Zkontroluj, zda začíná"
-            f" na AIza... (Detail: {models_resp.text})"
+            "❌ Chyba API klíče: Google klíč nepřijal. (Detail:"
+            f" {models_resp.text})"
         )
 
     models_data = models_resp.json().get("models", [])
@@ -71,22 +71,14 @@ def generate_ads(web_content, key):
         and "gemini" in m["name"]
     ]
 
-    # Výběr nejlepšího modelu, který máš k dispozici
-    preferred = [
-        "models/gemini-2.5-flash",
-        "models/gemini-2.0-flash",
-        "models/gemini-1.5-pro",
-        "models/gemini-1.5-flash",
+    # Prioritní seznam s nejnovějším modelem gemini-3.8-flash na prvním místě
+    candidate_models = [
+        "models/gemini-3.8-flash",
+        "models/gemini-3.8-pro",
     ]
-    chosen_model = None
-    for p in preferred:
-        if p in available_models:
-            chosen_model = p
-            break
-    if not chosen_model and available_models:
-        chosen_model = available_models[0]
-    if not chosen_model:
-        return "❌ Na tvém Google účtu nebyl nalezen žádný textový model Gemini."
+    for m in sorted(available_models, reverse=True):
+        if m not in candidate_models:
+            candidate_models.append(m)
 
     # 2. Zadání (Prompt) pro umělou inteligenci
     prompt = f"""
@@ -116,24 +108,31 @@ def generate_ads(web_content, key):
     Piš perfektní, přirozenou češtinou. Žádné strojové překlady typu "Odemkněte svůj potenciál".
     """
 
-    # 3. Odeslání požadavku přímo do Googlu
-    gen_url = f"https://generativelanguage.googleapis.com/v1beta/{chosen_model}:generateContent?key={key}"
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
         "generationConfig": {"temperature": 0.7},
     }
 
-    response = requests.post(gen_url, json=payload, timeout=60)
-    if response.status_code != 200:
-        return (
-            f"❌ Chyba při generování ({response.status_code}): {response.text}"
-        )
+    # 3. Odeslání požadavku (pokud by byl některý starší model nedostupný, automaticky zkusí další)
+    last_error = ""
+    for chosen_model in candidate_models:
+        gen_url = f"https://generativelanguage.googleapis.com/v1beta/{chosen_model}:generateContent?key={key}"
+        response = requests.post(gen_url, json=payload, timeout=60)
 
-    data = response.json()
-    try:
-        return data["candidates"][0]["content"]["parts"][0]["text"]
-    except Exception:
-        return f"❌ Neočekávaná odpověď od Googlu: {data}"
+        if response.status_code == 200:
+            data = response.json()
+            try:
+                return data["candidates"][0]["content"]["parts"][0]["text"]
+            except Exception:
+                last_error = f"❌ Neočekávaná odpověď od Googlu: {data}"
+        else:
+            last_error = f"❌ Chyba ({response.status_code}) u modelu {chosen_model}: {response.text}"
+            if response.status_code in [404, 400]:
+                continue  # Automaticky zkusí další model v pořadí
+            else:
+                break
+
+    return last_error
 
 
 # --- HLAVNÍ LOGIKA APLIKACE ---
