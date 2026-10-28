@@ -22,7 +22,7 @@ st.markdown(
 <style>
 /* Skrytí horní lišty, menu a patičky Streamlitu */
 #MainMenu {visibility: hidden;}
-header {visibility: hidden;}
+header[data-testid="stHeader"] {background: transparent !important;}
 footer {visibility: hidden;}
 .stAppDeployButton {display: none;}
 div[data-testid="stStatusWidget"] {visibility: hidden;}
