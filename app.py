@@ -223,9 +223,8 @@ try:
 except Exception:
     pass
 
-# --- HORNÍ ROZBALOVACÍ KARTA S PŘIHLÁŠENÍM / LICENCÍ (NIKDY NEMŮŽE ZMIZET!) ---
+# --- HORNÍ ROZBALOVACÍ KARTA S PŘIHLÁŠENÍM / LICENCÍ ---
 if saved_key:
-    # VIP MAJITELSKÁ VERZE
     expected_pass = admin_secret_pass if admin_secret_pass else "Admin2026"
     with st.expander(
         "🔐 Přihlášení majitele & Generátor licencí pro zákazníky (Klikněte pro"
@@ -269,7 +268,6 @@ if saved_key:
                 )
                 st.code(codes_list, language="text")
 else:
-    # ZÁKAZNICKÁ VERZE
     with st.expander(
         "🔑 Aktivace licence a propojení Google AI klíče (Klikněte pro"
         " otevření/zavření)",
@@ -285,7 +283,7 @@ else:
             api_key = st.text_input(
                 "2️⃣ Vložte svůj Google AI API klíč:",
                 type="password",
-                placeholder="AIzaSy...",
+                placeholder="AIzaSy... nebo AQ...",
             )
 
         if user_license:
@@ -300,9 +298,8 @@ else:
         st.markdown(
             "❓ **Nemáte ještě svůj bezplatný Google klíč?** Otevřete **[Google"
             " AI Studio](https://aistudio.google.com/apikey)**, klikněte na"
-            " modré tlačítko **Create API key** a zkopírovaný kód (začíná na"
-            " `AIzaSy...`) vložte do políčka výše. Zabere to 1 minutu a je to"
-            " zcela zdarma."
+            " modré tlačítko **Create API key** a zkopírovaný kód vložte do"
+            " políčka výše. Zabere to 1 minutu a je to zcela zdarma."
         )
 
 # --- HLAVNÍ VSTUPNÍ FORMULÁŘ V KARTĚ ---
@@ -375,36 +372,42 @@ def scrape_website(target_url):
         return f"Chyba při načítání webu: {e}"
 
 
-# --- FUNKCE PRO PŘÍMÉ NAPOJENÍ NA GOOGLE GEMINI ---
+# --- FUNKCE PRO PŘÍMÉ NAPOJENÍ NA GOOGLE GEMINI (PODPORA AIzaSy I AQ. KLÍČŮ) ---
 def generate_ads(web_content, key, lang, tone, offer):
     key = key.strip()
 
-    models_url = (
-        f"https://generativelanguage.googleapis.com/v1beta/models?key={key}"
-    )
-    models_resp = requests.get(models_url)
-
-    if models_resp.status_code != 200:
-        return (
-            "❌ Chyba API klíče: Google klíč nepřijal. Zkontrolujte, zda jste"
-            " ho zkopírovali celý a zda začíná na AIzaSy..."
-        )
-
-    models_data = models_resp.json().get("models", [])
-    available_models = [
-        m["name"]
-        for m in models_data
-        if "generateContent" in m.get("supportedGenerationMethods", [])
-        and "gemini" in m["name"]
-    ]
-
+    # Výchozí seznam modelů (od nejnovějších po starší)
     candidate_models = [
-        "models/gemini-3.8-flash",
-        "models/gemini-3.8-pro",
+        "gemini-3.8-flash",
+        "gemini-3.8-pro",
+        "gemini-2.5-flash",
+        "gemini-2.5-pro",
+        "gemini-2.0-flash",
+        "gemini-1.5-flash",
     ]
-    for m in sorted(available_models, reverse=True):
-        if m not in candidate_models:
-            candidate_models.append(m)
+
+    # Pokud klíč podporuje výpis modelů, doplníme případné další dostupné modely
+    try:
+        models_url = (
+            f"https://generativelanguage.googleapis.com/v1beta/models?key={key}"
+        )
+        models_resp = requests.get(models_url, timeout=10)
+        if models_resp.status_code == 200:
+            models_data = models_resp.json().get("models", [])
+            for m in sorted(
+                [
+                    m["name"].replace("models/", "")
+                    for m in models_data
+                    if "generateContent"
+                    in m.get("supportedGenerationMethods", [])
+                    and "gemini" in m["name"]
+                ],
+                reverse=True,
+            ):
+                if m not in candidate_models:
+                    candidate_models.append(m)
+    except Exception:
+        pass
 
     if offer.strip():
         offer_instruction = (
@@ -489,23 +492,41 @@ def generate_ads(web_content, key, lang, tone, offer):
         "generationConfig": {"temperature": 0.75},
     }
 
+    # Podpora jak pro klasické AI Studio klíče (AIzaSy...), tak pro nové Vertex/Cloud klíče (AQ...)
     last_error = ""
-    for chosen_model in candidate_models:
-        gen_url = f"https://generativelanguage.googleapis.com/v1beta/{chosen_model}:generateContent?key={key}"
-        response = requests.post(gen_url, json=payload, timeout=60)
+    for model_id in candidate_models:
+        clean_model = model_id.replace("models/", "")
 
-        if response.status_code == 200:
-            data = response.json()
-            try:
-                return data["candidates"][0]["content"]["parts"][0]["text"]
-            except Exception:
-                last_error = f"❌ Neočekávaná odpověď od Googlu: {data}"
+        if key.startswith("AQ."):
+            endpoints = [
+                f"https://aiplatform.googleapis.com/v1/publishers/google/models/{clean_model}:generateContent?key={key}",
+                f"https://aiplatform.googleapis.com/v1beta1/publishers/google/models/{clean_model}:generateContent?key={key}",
+                f"https://generativelanguage.googleapis.com/v1beta/models/{clean_model}:generateContent?key={key}",
+            ]
         else:
-            last_error = f"❌ Chyba ({response.status_code}) u modelu {chosen_model}: {response.text}"
-            if response.status_code in [404, 400]:
-                continue
-            else:
-                break
+            endpoints = [
+                f"https://generativelanguage.googleapis.com/v1beta/models/{clean_model}:generateContent?key={key}",
+                f"https://aiplatform.googleapis.com/v1/publishers/google/models/{clean_model}:generateContent?key={key}",
+            ]
+
+        for gen_url in endpoints:
+            try:
+                response = requests.post(gen_url, json=payload, timeout=60)
+                if response.status_code == 200:
+                    data = response.json()
+                    try:
+                        return data["candidates"][0]["content"]["parts"][0][
+                            "text"
+                        ]
+                    except Exception:
+                        last_error = f"❌ Neočekávaná odpověď od Googlu: {data}"
+                else:
+                    last_error = (
+                        f"❌ Chyba ({response.status_code}) u modelu"
+                        f" {clean_model}: {response.text}"
+                    )
+            except Exception as e:
+                last_error = f"❌ Chyba spojení: {e}"
 
     return last_error
 
