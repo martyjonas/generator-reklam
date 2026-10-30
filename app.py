@@ -6,17 +6,18 @@ import requests
 import streamlit as st
 
 # ==============================================================================
-# 🎨 NASTAVENÍ ZNAČKY
+# 🎨 NASTAVENÍ ZNAČKY & LICENČNÍCH KLÍČŮ
 # ==============================================================================
-NAZEV_APLIKACE = "AI Marketing Studio PRO"
-PODTITULEK_APLIKACE = "Chytrý generátor klíčových slov a vysoce konverzních reklam pro Google, FB a Instagram"
+NAZEV_APLIKACE = "AI Marketing Studio PRO (Master Admin)"
+PODTITULEK_APLIKACE = "Centrální velitelské centrum pro tvorbu kampaní a správu licencí (ČR & Svět)"
 NAZEV_TVE_ZNACKY = "AI Marketing Studio"
-TAJNY_KLIC_LICENCI = "MOJE_TAJNA_SUL_2026"
+SALT_CZ = "MOJE_TAJNA_SUL_2026"
+SALT_GLOBAL = "GLOBAL_SECRET_SALT_2026"
 # ==============================================================================
 
 st.set_page_config(
     page_title=NAZEV_APLIKACE,
-    page_icon="✨",
+    page_icon="👑",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
@@ -32,12 +33,12 @@ footer {visibility: hidden;}
 section[data-testid="stSidebar"] {display: none;}
 
 .hero-banner {
-    background: linear-gradient(135deg, #1e3c72 0%, #2a5298 50%, #6b46c1 100%);
+    background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 50%, #6b21a8 100%);
     padding: 35px 30px;
     border-radius: 16px;
     color: white;
     margin-bottom: 20px;
-    box-shadow: 0 10px 25px rgba(30, 60, 114, 0.2);
+    box-shadow: 0 10px 25px rgba(15, 23, 42, 0.25);
 }
 .hero-title {
     font-size: 32px;
@@ -123,106 +124,35 @@ div.stButton > button:first-child:hover {
 )
 
 
-# --- UNIVERZÁLNÍ LICENČNÍ SYSTÉM ---
-LICENSE_DB_FILE = "activated_licenses.json"
-
-
-@st.cache_resource
-def get_activated_licenses():
-    if os.path.exists(LICENSE_DB_FILE):
-        try:
-            with open(LICENSE_DB_FILE, "r") as f:
-                return json.load(f)
-        except Exception:
-            return {}
-    return {}
-
-
-def save_activated_licenses(db):
-    try:
-        with open(LICENSE_DB_FILE, "w") as f:
-            json.dump(db, f)
-    except Exception:
-        pass
-
-
-def create_license_code(number_id):
+# --- GENERÁTORY KÓDŮ PRO OBĚ VERZE ---
+def create_code_cz(number_id):
     body = f"{number_id:04d}"
     signature = (
-        hashlib.sha256((body + TAJNY_KLIC_LICENCI).encode())
-        .hexdigest()[:3]
-        .upper()
+        hashlib.sha256((body + SALT_CZ).encode()).hexdigest()[:3].upper()
     )
     return f"PRO-{body}-{signature}"
 
 
-def verify_and_lock_license(code, user_api_key):
-    code = code.strip().upper()
-    parts = code.split("-")
-    if len(parts) != 3 or parts[0] != "PRO" or not parts[1].isdigit():
-        return (
-            False,
-            (
-                "❌ Neplatný licenční kód. Zkontrolujte jeho zadání z"
-                " objednávky."
-            ),
-        )
-
-    expected_code = create_license_code(int(parts[1]))
-    if code != expected_code:
-        return (
-            False,
-            (
-                "❌ Neplatný licenční kód. Zkontrolujte jeho zadání z"
-                " objednávky."
-            ),
-        )
-
-    clean_key = user_api_key.strip()
-    if not clean_key:
-        return (
-            True,
-            (
-                "✅ Licenční kód je platný! Nyní vedle vložte svůj Google AI"
-                " klíč."
-            ),
-        )
-
-    key_hash = hashlib.sha256(clean_key.encode()).hexdigest()
-    db = get_activated_licenses()
-
-    if code not in db:
-        db[code] = key_hash
-        save_activated_licenses(db)
-        return (
-            True,
-            "✅ Licence byla úspěšně aktivována a spárována s vaším klíčem!",
-        )
-    else:
-        if db[code] == key_hash:
-            return True, "✅ Licence je aktivní a ověřená!"
-        else:
-            return (
-                False,
-                (
-                    "❌ Tento licenční kód již byl aktivován jiným uživatelem a"
-                    " nelze jej použít podruhé!"
-                ),
-            )
+def create_code_global(number_id):
+    body = f"{number_id:04d}"
+    signature = (
+        hashlib.sha256((body + SALT_GLOBAL).encode()).hexdigest()[:3].upper()
+    )
+    return f"GLOBAL-{body}-{signature}"
 
 
 # --- VYKRESLENÍ HORNÍHO BANNERU ---
 st.markdown(
     f"""
 <div class="hero-banner">
-    <div class="hero-title">✨ {NAZEV_APLIKACE}</div>
+    <div class="hero-title">👑 {NAZEV_APLIKACE}</div>
     <div class="hero-subtitle">{PODTITULEK_APLIKACE}</div>
 </div>
 """,
     unsafe_allow_html=True,
 )
 
-# --- NAČTENÍ SECRETS ---
+# --- NAČTENÍ MASTER SECRETS ---
 saved_key = ""
 try:
     if "GOOGLE_API_KEY" in st.secrets:
@@ -230,61 +160,61 @@ try:
 except Exception:
     pass
 
-# --- AUTORIZACE ---
-if saved_key:
-    api_key = saved_key
-    license_ok = True
-    with st.expander(
-        "🔑 VIP Majitelský režim je aktivní (Klikněte pro generátor licencí pro"
-        " zákazníky)"
-    ):
-        st.success("Jste přihlášen jako majitel. Váš API klíč je aktivní.")
-        st.markdown("##### 🎟️ Generátor unikátních kódů pro zákazníky")
-        batch_start = st.number_input(
-            "Vygenerovat sadu 20 kódů od čísla zákazníka:",
-            min_value=1,
-            value=1,
-            step=20,
+api_key = saved_key
+license_ok = True
+
+# --- VELÍNSKÉ CENTRUM LICENCÍ (POUZE PRO MAJITELE V TÉTO VIP VERZI) ---
+with st.expander(
+    "🎟️ CENTRÁLNÍ GENERÁTOR LICENCÍ PRO ZÁKAZNÍKY (Český Wix & Globální"
+    " Gumroad)",
+    expanded=True,
+):
+    col_typ, col_od, col_pocet = st.columns([1.5, 1, 1])
+
+    with col_typ:
+        typ_licence = st.radio(
+            "Vyberte typ licencí k vygenerování:",
+            [
+                "🇨🇿 České licence pro Wix (PRO-XXXX-XXX)",
+                "🌍 Mezinárodní licence pro Gumroad (GLOBAL-XXXX-XXX)",
+            ],
         )
+
+    with col_od:
+        batch_start = st.number_input(
+            "Začít od čísla zákazníka:", min_value=1, value=1, step=50
+        )
+
+    with col_pocet:
+        batch_count = st.selectbox(
+            "Kolik kódů naráz vygenerovat:", [20, 50, 100, 200, 500], index=2
+        )
+
+    # Vygenerování seznamu
+    if "České" in typ_licence:
         codes_list = "\n".join(
             [
-                create_license_code(i)
-                for i in range(batch_start, batch_start + 20)
+                create_code_cz(i)
+                for i in range(batch_start, batch_start + batch_count)
             ]
         )
-        st.code(codes_list, language="text")
-else:
-    with st.expander(
-        "🔑 Aktivace licence a propojení Google AI klíče", expanded=True
-    ):
-        col_lic1, col_lic2 = st.columns(2)
-        with col_lic1:
-            user_license = st.text_input(
-                "1️⃣ Zadejte svůj unikátní licenční kód z objednávky:",
-                placeholder="PRO-0001-...",
-            )
-        with col_lic2:
-            api_key = st.text_input(
-                "2️⃣ Vložte svůj Google AI klíč (libovolný formát):",
-                type="password",
-                placeholder="Vložte váš klíč z Google AI Studia...",
-            )
-
-        if user_license:
-            license_ok, lic_msg = verify_and_lock_license(user_license, api_key)
-            if license_ok:
-                st.success(lic_msg)
-            else:
-                st.error(lic_msg)
-        else:
-            license_ok = False
-
-        st.markdown(
-            "❓ **Kde získat bezplatný Google klíč?** Otevřete **[Google AI"
-            " Studio](https://aistudio.google.com/apikey)**, klikněte na modré"
-            " tlačítko **Create API key** a zkopírovaný kód vložte do políčka"
-            " výše."
+        st.caption(
+            "📋 Tyto kódy nahrajte do Google Tabulky / Make.com pro český Wix"
+            " e-shop:"
         )
+    else:
+        codes_list = "\n".join(
+            [
+                create_code_global(i)
+                for i in range(batch_start, batch_start + batch_count)
+            ]
+        )
+        st.caption(
+            "📋 Tyto kódy vložte do Gumroadu v sekci 'License Keys -> Upload"
+            " your own keys':"
+        )
+
+    st.code(codes_list, language="text")
 
 # --- HLAVNÍ VSTUPNÍ FORMULÁŘ ---
 with st.container(border=True):
@@ -349,6 +279,9 @@ with st.container(border=True):
                 "🇸🇰 Slovenština",
                 "🇬🇧 Angličtina (English)",
                 "🇩🇪 Němčina (Deutsch)",
+                "🇫🇷 Francouzština (Français)",
+                "🇪🇸 Španělština (Español)",
+                "🇮🇹 Italština (Italiano)",
                 "🇵🇱 Polština (Polski)",
                 "🇭🇺 Maďarština (Magyar)",
             ],
@@ -371,7 +304,6 @@ with st.container(border=True):
             placeholder="např. Sleva 15 % s kódem JARO15, Doprava zdarma...",
         )
 
-    # --- ŽIVÝ SEMAFOR PŘIPRAVENOSTI ---
     st.write("")
     is_mode_url = "Možnost A" in vstupni_rezim
     has_valid_input = bool(
@@ -380,19 +312,17 @@ with st.container(border=True):
         else (manual_title.strip() or manual_desc.strip())
     )
 
-    if not license_ok:
+    if not api_key:
         st.warning(
-            "🔒 Pro spuštění nejprve zadejte licenční kód v horní kartě."
+            "🔑 V Secrets chybí GOOGLE_API_KEY. Doplňte ho pro spuštění."
         )
-    elif not api_key.strip():
-        st.warning("🔑 V horní kartě chybí Google AI API klíč.")
     elif not has_valid_input:
         if is_mode_url:
             st.info("ℹ️ Pro spuštění vložte výše webovou adresu (URL).")
         else:
             st.info("ℹ️ Pro spuštění popište výše svůj produkt či službu.")
     else:
-        st.success("🟢 Vše je připraveno ke generování!")
+        st.success("🟢 Vše je připraveno ke generování (VIP režim majitele)!")
 
     generate_clicked = st.button("✨ Vygenerovat kompletní kampaň")
 
@@ -421,15 +351,14 @@ def scrape_website(target_url):
         text = soup.get_text(separator=" ")
         lines = (line.strip() for line in text.splitlines())
         clean_text = " ".join(line for line in lines if line)
-        return clean_text[:10000]
+        return clean_text[:12000]
     except Exception as e:
         return f"Chyba při načítání webu: {e}"
 
 
-# --- 100% NADČASOVÉ NAPOJENÍ NA GOOGLE GEMINI S DYNAMICKOU DETEKCÍ MODELŮ ---
+# --- 100% NADČASOVÉ NAPOJENÍ NA GOOGLE GEMINI ---
 def generate_ads(source_content, is_url_source, key, lang, tone, offer, hint):
     key = key.strip()
-
     headers = {"Content-Type": "application/json", "x-goog-api-key": key}
 
     discovered_models = []
@@ -448,7 +377,6 @@ def generate_ads(source_content, is_url_source, key, lang, tone, offer, hint):
         pass
 
     candidate_models = sorted(discovered_models, reverse=True)
-
     fallback_list = [
         "gemini-3.8-flash",
         "gemini-3.8-pro",
@@ -572,7 +500,6 @@ def generate_ads(source_content, is_url_source, key, lang, tone, offer, hint):
     last_error = ""
     for model_id in candidate_models:
         clean_model = model_id.replace("models/", "")
-
         endpoints = [
             f"https://generativelanguage.googleapis.com/v1beta/models/{clean_model}:generateContent",
             f"https://generativelanguage.googleapis.com/v1/models/{clean_model}:generateContent",
@@ -609,12 +536,8 @@ def generate_ads(source_content, is_url_source, key, lang, tone, offer, hint):
 
 # --- HLAVNÍ SPOUŠTĚCÍ LOGIKA ---
 if generate_clicked:
-    if not license_ok:
-        status_placeholder.error(
-            "🔒 Pro spuštění se prosím nejprve autorizujte v horní kartě."
-        )
-    elif not api_key.strip():
-        status_placeholder.error("🔑 Chybí Google AI API klíč v horní kartě.")
+    if not api_key.strip():
+        status_placeholder.error("🔑 Chybí Google AI API klíč v Secrets.")
     elif not has_valid_input:
         status_placeholder.warning(
             "⚠️ Vyplňte prosím zadané údaje o produktu."
@@ -667,7 +590,7 @@ if generate_clicked:
 st.markdown(
     f"""
 <div class="custom-footer">
-    © 2026 <strong>{NAZEV_APLIKACE}</strong> | Profesionální AI nástroj pro e-shopy a marketéry
+    © 2026 <strong>{NAZEV_APLIKACE}</strong> | Master Control Panel
 </div>
 """,
     unsafe_allow_html=True,
