@@ -21,18 +21,16 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-# --- MODERNÍ PROFI DESIGN + STYLOVÁNÍ ---
+# --- MODERNÍ PROFI DESIGN ---
 st.markdown(
     """
 <style>
-/* Skrytí rušivých prvků Streamlitu (BEZ blokování indikátoru načítání!) */
 #MainMenu {visibility: hidden;}
 header {visibility: hidden;}
 footer {visibility: hidden;}
 .stAppDeployButton {display: none !important;}
 section[data-testid="stSidebar"] {display: none;}
 
-/* Horní luxusní banner s barevným přechodem */
 .hero-banner {
     background: linear-gradient(135deg, #1e3c72 0%, #2a5298 50%, #6b46c1 100%);
     padding: 35px 30px;
@@ -54,7 +52,6 @@ section[data-testid="stSidebar"] {display: none;}
     font-weight: 400;
 }
 
-/* JEDNODUCHÝ ČISTÝ RÁMEČEK VÝSLEDKŮ */
 div[data-testid="stCodeBlock"] pre, div[data-testid="stCode"] pre {
     white-space: pre-wrap !important;
     word-wrap: break-word !important;
@@ -79,7 +76,6 @@ div[data-testid="stCodeBlock"] code, div[data-testid="stCode"] code, pre code {
     box-shadow: none !important;
 }
 
-/* ZVÝRAZNĚNÍ ROZCESTNÍKU (PŘEPÍNACÍCH TLAČÍTEK) */
 div[data-testid="stRadio"] > div {
     background: #f1f5f9;
     padding: 8px;
@@ -95,7 +91,6 @@ div[data-testid="stRadio"] label {
     box-shadow: 0 1px 3px rgba(0,0,0,0.08);
 }
 
-/* Moderní velké tlačítko pro generování */
 div.stButton > button:first-child {
     background: linear-gradient(90deg, #2563eb 0%, #7c3aed 100%);
     color: white;
@@ -114,7 +109,6 @@ div.stButton > button:first-child:hover {
     box-shadow: 0 6px 20px rgba(124, 58, 237, 0.45);
 }
 
-/* Vlastní patička */
 .custom-footer {
     text-align: center;
     margin-top: 50px;
@@ -129,7 +123,7 @@ div.stButton > button:first-child:hover {
 )
 
 
-# --- SYSTÉM UNIKÁTNÍCH JEDNORÁZOVÝCH LICENCÍ ---
+# --- UNIVERZÁLNÍ LICENČNÍ SYSTÉM ---
 LICENSE_DB_FILE = "activated_licenses.json"
 
 
@@ -184,7 +178,8 @@ def verify_and_lock_license(code, user_api_key):
             ),
         )
 
-    if not user_api_key.strip():
+    clean_key = user_api_key.strip()
+    if not clean_key:
         return (
             True,
             (
@@ -193,7 +188,7 @@ def verify_and_lock_license(code, user_api_key):
             ),
         )
 
-    key_hash = hashlib.sha256(user_api_key.strip().encode()).hexdigest()
+    key_hash = hashlib.sha256(clean_key.encode()).hexdigest()
     db = get_activated_licenses()
 
     if code not in db:
@@ -227,11 +222,11 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# --- NAČTENÍ SECRETS PRO ROZLIŠENÍ VIP A ZÁKAZNICKÉ VERZE ---
+# --- NAČTENÍ SECRETS ---
 saved_key = ""
 try:
     if "GOOGLE_API_KEY" in st.secrets:
-        saved_key = st.secrets["GOOGLE_API_KEY"]
+        saved_key = st.secrets["GOOGLE_API_KEY"].strip()
 except Exception:
     pass
 
@@ -270,9 +265,9 @@ else:
             )
         with col_lic2:
             api_key = st.text_input(
-                "2️⃣ Vložte svůj Google AI API klíč:",
+                "2️⃣ Vložte svůj Google AI klíč (libovolný formát):",
                 type="password",
-                placeholder="AIzaSy... nebo AQ...",
+                placeholder="Vložte váš klíč z Google AI Studia...",
             )
 
         if user_license:
@@ -285,10 +280,10 @@ else:
             license_ok = False
 
         st.markdown(
-            "❓ **Nemáte ještě svůj bezplatný Google klíč?** Otevřete **[Google"
-            " AI Studio](https://aistudio.google.com/apikey)**, klikněte na"
-            " modré tlačítko **Create API key** a zkopírovaný kód vložte do"
-            " políčka výše. Zabere to 1 minutu a je to zcela zdarma."
+            "❓ **Kde získat bezplatný Google klíč?** Otevřete **[Google AI"
+            " Studio](https://aistudio.google.com/apikey)**, klikněte na modré"
+            " tlačítko **Create API key** a zkopírovaný kód vložte do políčka"
+            " výše."
         )
 
 # --- HLAVNÍ VSTUPNÍ FORMULÁŘ ---
@@ -322,8 +317,8 @@ with st.container(border=True):
             product_hint_url = st.text_input(
                 "🎯 Upřesnění / Cílová skupina (nepovinné):",
                 placeholder=(
-                    "např. Dámské ponožky pro dospělé, Luxusní dárek pro"
-                    " muže..."
+                    "např. Prémiový dárek pro ženy, zaměřit na začátečníky,"
+                    " firemní klientela..."
                 ),
             )
     else:
@@ -376,7 +371,7 @@ with st.container(border=True):
             placeholder="např. Sleva 15 % s kódem JARO15, Doprava zdarma...",
         )
 
-    # --- ŽIVÝ SEMAFOR KONTROLY PŘED KLIKNUTÍM ---
+    # --- ŽIVÝ SEMAFOR PŘIPRAVENOSTI ---
     st.write("")
     is_mode_url = "Možnost A" in vstupni_rezim
     has_valid_input = bool(
@@ -389,7 +384,7 @@ with st.container(border=True):
         st.warning(
             "🔒 Pro spuštění nejprve zadejte licenční kód v horní kartě."
         )
-    elif not api_key:
+    elif not api_key.strip():
         st.warning("🔑 V horní kartě chybí Google AI API klíč.")
     elif not has_valid_input:
         if is_mode_url:
@@ -401,7 +396,6 @@ with st.container(border=True):
 
     generate_clicked = st.button("✨ Vygenerovat kompletní kampaň")
 
-# Místo pro zobrazení průběhu načítání a výsledků přímo pod formulářem
 status_placeholder = st.empty()
 
 
@@ -432,11 +426,30 @@ def scrape_website(target_url):
         return f"Chyba při načítání webu: {e}"
 
 
-# --- FUNKCE PRO PŘÍMÉ NAPOJENÍ NA GOOGLE GEMINI ---
+# --- 100% NADČASOVÉ NAPOJENÍ NA GOOGLE GEMINI S DYNAMICKOU DETEKCÍ MODELŮ ---
 def generate_ads(source_content, is_url_source, key, lang, tone, offer, hint):
     key = key.strip()
 
-    candidate_models = [
+    headers = {"Content-Type": "application/json", "x-goog-api-key": key}
+
+    discovered_models = []
+    try:
+        models_url = "https://generativelanguage.googleapis.com/v1beta/models"
+        res = requests.get(
+            models_url, headers=headers, params={"key": key}, timeout=8
+        )
+        if res.status_code == 200:
+            for item in res.json().get("models", []):
+                m_name = item.get("name", "").replace("models/", "")
+                methods = item.get("supportedGenerationMethods", [])
+                if "generateContent" in methods and "gemini" in m_name.lower():
+                    discovered_models.append(m_name)
+    except Exception:
+        pass
+
+    candidate_models = sorted(discovered_models, reverse=True)
+
+    fallback_list = [
         "gemini-3.8-flash",
         "gemini-3.8-pro",
         "gemini-2.5-flash",
@@ -444,34 +457,15 @@ def generate_ads(source_content, is_url_source, key, lang, tone, offer, hint):
         "gemini-2.0-flash",
         "gemini-1.5-flash",
     ]
-
-    try:
-        models_url = (
-            f"https://generativelanguage.googleapis.com/v1beta/models?key={key}"
-        )
-        models_resp = requests.get(models_url, timeout=10)
-        if models_resp.status_code == 200:
-            models_data = models_resp.json().get("models", [])
-            for m in sorted(
-                [
-                    m["name"].replace("models/", "")
-                    for m in models_data
-                    if "generateContent"
-                    in m.get("supportedGenerationMethods", [])
-                    and "gemini" in m["name"]
-                ],
-                reverse=True,
-            ):
-                if m not in candidate_models:
-                    candidate_models.append(m)
-    except Exception:
-        pass
+    for fb in fallback_list:
+        if fb not in candidate_models:
+            candidate_models.append(fb)
 
     if hint.strip():
         hint_instruction = f"""
     ⚠️ DŮLEŽITÉ PŘÍMÉ ZADÁNÍ OD UŽIVATELE K PRODUKTU:
     Uživatel výslovně specifikoval: "{hint.strip()}".
-    Tato informace má ABSOLUTNÍ PŘEDNOST před jakýmikoliv tvými domněnkami (např. pokud jsou v textu velikosti 24-31 a uživatel uvedl dámské ponožky, jedná se o velikosti v centimetrech pro dospělé ženy, NIKOLIV o dětské ponožky!). Texty, cílovou skupinu a klíčová slova 100% zacíli podle tohoto zadání!
+    Tato informace má ABSOLUTNÍ PŘEDNOST před jakýmikoliv tvými domněnkami (pokud uživatel upřesnil cílovou skupinu, účel či parametry, 100% se tím řiď a ignoruj protichůdné obecné odhady z webu!). Texty, cílovou skupinu a klíčová slova 100% zacíli podle tohoto zadání!
     """
     else:
         hint_instruction = ""
@@ -579,21 +573,21 @@ def generate_ads(source_content, is_url_source, key, lang, tone, offer, hint):
     for model_id in candidate_models:
         clean_model = model_id.replace("models/", "")
 
-        if key.startswith("AQ."):
-            endpoints = [
-                f"https://aiplatform.googleapis.com/v1/publishers/google/models/{clean_model}:generateContent?key={key}",
-                f"https://aiplatform.googleapis.com/v1beta1/publishers/google/models/{clean_model}:generateContent?key={key}",
-                f"https://generativelanguage.googleapis.com/v1beta/models/{clean_model}:generateContent?key={key}",
-            ]
-        else:
-            endpoints = [
-                f"https://generativelanguage.googleapis.com/v1beta/models/{clean_model}:generateContent?key={key}",
-                f"https://aiplatform.googleapis.com/v1/publishers/google/models/{clean_model}:generateContent?key={key}",
-            ]
+        endpoints = [
+            f"https://generativelanguage.googleapis.com/v1beta/models/{clean_model}:generateContent",
+            f"https://generativelanguage.googleapis.com/v1/models/{clean_model}:generateContent",
+            f"https://aiplatform.googleapis.com/v1/publishers/google/models/{clean_model}:generateContent",
+        ]
 
         for gen_url in endpoints:
             try:
-                response = requests.post(gen_url, json=payload, timeout=60)
+                response = requests.post(
+                    gen_url,
+                    headers=headers,
+                    params={"key": key},
+                    json=payload,
+                    timeout=60,
+                )
                 if response.status_code == 200:
                     data = response.json()
                     try:
@@ -613,20 +607,19 @@ def generate_ads(source_content, is_url_source, key, lang, tone, offer, hint):
     return last_error
 
 
-# --- HLAVNÍ SPOUŠTĚCÍ LOGIKA S OKAMŽITÝM INDIKÁTOREM ---
+# --- HLAVNÍ SPOUŠTĚCÍ LOGIKA ---
 if generate_clicked:
     if not license_ok:
         status_placeholder.error(
             "🔒 Pro spuštění se prosím nejprve autorizujte v horní kartě."
         )
-    elif not api_key:
+    elif not api_key.strip():
         status_placeholder.error("🔑 Chybí Google AI API klíč v horní kartě.")
     elif not has_valid_input:
         status_placeholder.warning(
             "⚠️ Vyplňte prosím zadané údaje o produktu."
         )
     else:
-        # 1. Zobrazení nepřehlédnutelného informačního banneru přímo pod tlačítkem
         with status_placeholder.container():
             st.info(
                 "⏳ **Vytvářím vaši reklamní kampaň...** (zabere to cca 15–20"
@@ -658,7 +651,6 @@ if generate_clicked:
                 special_offer,
                 hint_to_use,
             )
-            # Smazání modrého načítacího boxu
             status_placeholder.empty()
 
             if ads_result.startswith("❌"):
