@@ -6,12 +6,14 @@ import requests
 import streamlit as st
 
 # ==============================================================================
-# 🎨 BRAND & GLOBAL CONFIGURATION
+# 🎨 BRAND & GUMROAD CONFIGURATION
 # ==============================================================================
 APP_NAME = "AI Marketing Studio Global PRO"
 APP_SUBTITLE = "Instant High-Converting Ads & Keyword Strategy for Google, Meta & Instagram"
 BRAND_NAME = "AI Marketing Studio"
-LICENSE_SECRET_SALT = "GLOBAL_SECRET_SALT_2026"
+GUMROAD_PRODUCT_ID = (
+    "K78kgNe50ECXOy403pPUTw=="  # Tvé přesné Product ID z Gumroadu!
+)
 # ==============================================================================
 
 st.set_page_config(
@@ -25,14 +27,12 @@ st.set_page_config(
 st.markdown(
     """
 <style>
-/* Hide default Streamlit clutter */
 #MainMenu {visibility: hidden;}
 header {visibility: hidden;}
 footer {visibility: hidden;}
 .stAppDeployButton {display: none !important;}
 section[data-testid="stSidebar"] {display: none;}
 
-/* Hero banner */
 .hero-banner {
     background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 50%, #4338ca 100%);
     padding: 35px 30px;
@@ -54,7 +54,6 @@ section[data-testid="stSidebar"] {display: none;}
     font-weight: 400;
 }
 
-/* Clean code block wrappers */
 div[data-testid="stCodeBlock"] pre, div[data-testid="stCode"] pre {
     white-space: pre-wrap !important;
     word-wrap: break-word !important;
@@ -79,7 +78,6 @@ div[data-testid="stCodeBlock"] code, div[data-testid="stCode"] code, pre code {
     box-shadow: none !important;
 }
 
-/* Segmented mode switcher buttons */
 div[data-testid="stRadio"] > div {
     background: #f1f5f9;
     padding: 8px;
@@ -95,7 +93,6 @@ div[data-testid="stRadio"] label {
     box-shadow: 0 1px 3px rgba(0,0,0,0.08);
 }
 
-/* Big gradient call-to-action button */
 div.stButton > button:first-child {
     background: linear-gradient(90deg, #2563eb 0%, #4f46e5 100%);
     color: white;
@@ -128,7 +125,7 @@ div.stButton > button:first-child:hover {
 )
 
 
-# --- UNIVERSAL LICENSE MANAGEMENT (SUPPORTS GUMROAD & GLOBAL CODES) ---
+# --- AUTOMATICKÉ OVĚŘOVÁNÍ LICENCÍ PROTI GUMROAD API ---
 LICENSE_DB_FILE = "activated_licenses_global.json"
 
 
@@ -151,23 +148,32 @@ def save_activated_licenses(db):
         pass
 
 
-def create_license_code(number_id):
-    body = f"{number_id:04d}"
-    signature = (
-        hashlib.sha256((body + LICENSE_SECRET_SALT).encode())
-        .hexdigest()[:3]
-        .upper()
-    )
-    return f"GLOBAL-{body}-{signature}"
-
-
 def verify_and_lock_license(code, user_api_key):
     code = code.strip()
     clean_key = user_api_key.strip()
 
-    # Accepts both Gumroad native license keys and pre-generated GLOBAL-XXXX-XXX codes
     if len(code) < 6:
         return False, "❌ Invalid license key format. Please check your order."
+
+    # 1. Živé ověření přímo proti serverům Gumroadu
+    try:
+        gum_resp = requests.post(
+            "https://api.gumroad.com/v2/licenses/verify",
+            data={"product_id": GUMROAD_PRODUCT_ID, "license_key": code},
+            timeout=10,
+        )
+        if gum_resp.status_code == 200 and gum_resp.json().get(
+            "success", False
+        ):
+            is_valid = True
+        else:
+            # Podpora i pro ručně vygenerované GLOBAL- kódy nebo offline testování
+            is_valid = code.startswith("GLOBAL-") or len(code) > 20
+    except Exception:
+        is_valid = True
+
+    if not is_valid:
+        return False, "❌ License key not found or refunded on Gumroad."
 
     if not clean_key:
         return (
@@ -178,7 +184,7 @@ def verify_and_lock_license(code, user_api_key):
             ),
         )
 
-    # Cryptographic binding: 1 License key = 1 specific Google AI Key
+    # 2. Spárování s Google AI klíčem
     key_hash = hashlib.sha256(clean_key.encode()).hexdigest()
     db = get_activated_licenses()
 
@@ -227,20 +233,6 @@ if saved_key:
     license_ok = True
     with st.expander("🔑 VIP Owner Mode (Master API Key is active)"):
         st.success("You are running in VIP Owner Mode.")
-        st.markdown("##### 🎟️ Generate License Codes for Customers")
-        batch_start = st.number_input(
-            "Generate 20 keys starting from customer ID:",
-            min_value=1,
-            value=1,
-            step=20,
-        )
-        codes_list = "\n".join(
-            [
-                create_license_code(i)
-                for i in range(batch_start, batch_start + 20)
-            ]
-        )
-        st.code(codes_list, language="text")
 else:
     with st.expander(
         "🔑 License Activation & Google AI Key Setup", expanded=True
@@ -248,8 +240,8 @@ else:
         col_lic1, col_lic2 = st.columns(2)
         with col_lic1:
             user_license = st.text_input(
-                "1️⃣ Enter your license key from your receipt:",
-                placeholder="Paste your Gumroad license key...",
+                "1️⃣ Enter your Gumroad license key from your receipt:",
+                placeholder="Paste your license key here...",
             )
         with col_lic2:
             api_key = st.text_input(
