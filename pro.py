@@ -21,16 +21,15 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-# --- MODERNÍ PROFI DESIGN + STYLOVÁNÍ PŘEPÍNACÍCH TLAČÍTEK ---
+# --- MODERNÍ PROFI DESIGN + STYLOVÁNÍ ---
 st.markdown(
     """
 <style>
-/* Skrytí rušivých prvků Streamlitu */
+/* Skrytí rušivých prvků Streamlitu (BEZ blokování indikátoru načítání!) */
 #MainMenu {visibility: hidden;}
 header {visibility: hidden;}
 footer {visibility: hidden;}
 .stAppDeployButton {display: none !important;}
-div[data-testid="stStatusWidget"] {visibility: hidden;}
 section[data-testid="stSidebar"] {display: none;}
 
 /* Horní luxusní banner s barevným přechodem */
@@ -238,7 +237,6 @@ except Exception:
 
 # --- AUTORIZACE ---
 if saved_key:
-    # VIP MAJITELSKÁ VERZE: OKAMŽITĚ AKTIVNÍ BEZ HESLA!
     api_key = saved_key
     license_ok = True
     with st.expander(
@@ -261,7 +259,6 @@ if saved_key:
         )
         st.code(codes_list, language="text")
 else:
-    # ZÁKAZNICKÁ VERZE: ZADÁNÍ LICENCE A KLÍČE
     with st.expander(
         "🔑 Aktivace licence a propojení Google AI klíče", expanded=True
     ):
@@ -403,6 +400,9 @@ with st.container(border=True):
         st.success("🟢 Vše je připraveno ke generování!")
 
     generate_clicked = st.button("✨ Vygenerovat kompletní kampaň")
+
+# Místo pro zobrazení průběhu načítání a výsledků přímo pod formulářem
+status_placeholder = st.empty()
 
 
 # --- FUNKCE PRO STAŽENÍ TEXTU Z WEBU ---
@@ -613,35 +613,41 @@ def generate_ads(source_content, is_url_source, key, lang, tone, offer, hint):
     return last_error
 
 
-# --- HLAVNÍ SPOUŠTĚCÍ LOGIKA ---
+# --- HLAVNÍ SPOUŠTĚCÍ LOGIKA S OKAMŽITÝM INDIKÁTOREM ---
 if generate_clicked:
     if not license_ok:
-        st.error(
+        status_placeholder.error(
             "🔒 Pro spuštění se prosím nejprve autorizujte v horní kartě."
         )
     elif not api_key:
-        st.error("🔑 Chybí Google AI API klíč v horní kartě.")
+        status_placeholder.error("🔑 Chybí Google AI API klíč v horní kartě.")
     elif not has_valid_input:
-        st.warning("⚠️ Vyplňte prosím zadané údaje o produktu.")
+        status_placeholder.warning(
+            "⚠️ Vyplňte prosím zadané údaje o produktu."
+        )
     else:
+        # 1. Zobrazení nepřehlédnutelného informačního banneru přímo pod tlačítkem
+        with status_placeholder.container():
+            st.info(
+                "⏳ **Vytvářím vaši reklamní kampaň...** (zabere to cca 15–20"
+                " vteřin)\n\n• Načítám data o produktu\n• Hledám"
+                " nejkonverznější klíčová slova\n• Píšu texty pro Google, FB a"
+                " Instagram v přirozeném lidském tónu"
+            )
+
         if is_mode_url:
-            with st.spinner(
-                "⏳ Načítám web, analyzuji klíčová slova a tvořím kampaň..."
-            ):
-                source_text = scrape_website(url_input)
-                is_url = True
-                hint_to_use = product_hint_url
+            source_text = scrape_website(url_input)
+            is_url = True
+            hint_to_use = product_hint_url
         else:
-            with st.spinner(
-                "⏳ Zpracovávám váš popis produktu, hledám klíčová slova a"
-                " tvořím kampaň..."
-            ):
-                source_text = f"Název: {manual_title}\nPopis a parametry: {manual_desc}"
-                is_url = False
-                hint_to_use = ""
+            source_text = (
+                f"Název: {manual_title}\nPopis a parametry: {manual_desc}"
+            )
+            is_url = False
+            hint_to_use = ""
 
         if is_url and source_text.startswith("Chyba"):
-            st.error(source_text)
+            status_placeholder.error(source_text)
         else:
             ads_result = generate_ads(
                 source_text,
@@ -652,6 +658,9 @@ if generate_clicked:
                 special_offer,
                 hint_to_use,
             )
+            # Smazání modrého načítacího boxu
+            status_placeholder.empty()
+
             if ads_result.startswith("❌"):
                 st.error(ads_result)
             else:
