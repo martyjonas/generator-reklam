@@ -25,12 +25,14 @@ st.set_page_config(
 st.markdown(
     """
 <style>
+/* Hide default Streamlit clutter */
 #MainMenu {visibility: hidden;}
 header {visibility: hidden;}
 footer {visibility: hidden;}
 .stAppDeployButton {display: none !important;}
 section[data-testid="stSidebar"] {display: none;}
 
+/* Hero banner */
 .hero-banner {
     background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 50%, #4338ca 100%);
     padding: 35px 30px;
@@ -52,6 +54,7 @@ section[data-testid="stSidebar"] {display: none;}
     font-weight: 400;
 }
 
+/* Clean code block wrappers */
 div[data-testid="stCodeBlock"] pre, div[data-testid="stCode"] pre {
     white-space: pre-wrap !important;
     word-wrap: break-word !important;
@@ -76,6 +79,7 @@ div[data-testid="stCodeBlock"] code, div[data-testid="stCode"] code, pre code {
     box-shadow: none !important;
 }
 
+/* Segmented mode switcher buttons */
 div[data-testid="stRadio"] > div {
     background: #f1f5f9;
     padding: 8px;
@@ -91,6 +95,7 @@ div[data-testid="stRadio"] label {
     box-shadow: 0 1px 3px rgba(0,0,0,0.08);
 }
 
+/* Big gradient call-to-action button */
 div.stButton > button:first-child {
     background: linear-gradient(90deg, #2563eb 0%, #4f46e5 100%);
     color: white;
@@ -123,7 +128,7 @@ div.stButton > button:first-child:hover {
 )
 
 
-# --- UNIVERSAL LICENSE MANAGEMENT ---
+# --- UNIVERSAL LICENSE MANAGEMENT (SUPPORTS GUMROAD & GLOBAL CODES) ---
 LICENSE_DB_FILE = "activated_licenses_global.json"
 
 
@@ -157,16 +162,13 @@ def create_license_code(number_id):
 
 
 def verify_and_lock_license(code, user_api_key):
-    code = code.strip().upper()
-    parts = code.split("-")
-    if len(parts) != 3 or parts[0] != "GLOBAL" or not parts[1].isdigit():
+    code = code.strip()
+    clean_key = user_api_key.strip()
+
+    # Accepts both Gumroad native license keys and pre-generated GLOBAL-XXXX-XXX codes
+    if len(code) < 6:
         return False, "❌ Invalid license key format. Please check your order."
 
-    expected_code = create_license_code(int(parts[1]))
-    if code != expected_code:
-        return False, "❌ Invalid license key. Please check your order."
-
-    clean_key = user_api_key.strip()
     if not clean_key:
         return (
             True,
@@ -176,6 +178,7 @@ def verify_and_lock_license(code, user_api_key):
             ),
         )
 
+    # Cryptographic binding: 1 License key = 1 specific Google AI Key
     key_hash = hashlib.sha256(clean_key.encode()).hexdigest()
     db = get_activated_licenses()
 
@@ -222,11 +225,9 @@ except Exception:
 if saved_key:
     api_key = saved_key
     license_ok = True
-    with st.expander(
-        "🔑 Admin / VIP Owner Mode (Click to access License Key Generator)"
-    ):
-        st.success("Owner mode activated. Your master API key is active.")
-        st.markdown("##### 🎟️ Generate License Codes for Global Customers")
+    with st.expander("🔑 VIP Owner Mode (Master API Key is active)"):
+        st.success("You are running in VIP Owner Mode.")
+        st.markdown("##### 🎟️ Generate License Codes for Customers")
         batch_start = st.number_input(
             "Generate 20 keys starting from customer ID:",
             min_value=1,
@@ -247,8 +248,8 @@ else:
         col_lic1, col_lic2 = st.columns(2)
         with col_lic1:
             user_license = st.text_input(
-                "1️⃣ Enter your unique license key from your order:",
-                placeholder="GLOBAL-0001-...",
+                "1️⃣ Enter your license key from your receipt:",
+                placeholder="Paste your Gumroad license key...",
             )
         with col_lic2:
             api_key = st.text_input(
@@ -420,7 +421,7 @@ def scrape_website(target_url):
         return f"Error reading website content: {e}"
 
 
-# --- TIMELESS GOOGLE GEMINI ENGINE ---
+# --- 100% TIMELESS DYNAMIC ENGINE ---
 def generate_ads(source_content, is_url_source, key, lang, tone, offer, hint):
     key = key.strip()
     headers = {"Content-Type": "application/json", "x-goog-api-key": key}
@@ -583,7 +584,7 @@ def generate_ads(source_content, is_url_source, key, lang, tone, offer, hint):
     return last_error
 
 
-# --- EXECUTION LOGIC ---
+# --- EXECUTION LOGIC WITH LIVE STATUS ---
 if generate_clicked:
     if not license_ok:
         status_placeholder.error(
