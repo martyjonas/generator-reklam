@@ -302,18 +302,54 @@ else:
             " políčka výše. Zabere to 1 minutu a je to zcela zdarma."
         )
 
-# --- HLAVNÍ VSTUPNÍ FORMULÁŘ V KARTĚ ---
+# --- HLAVNÍ VSTUPNÍ FORMULÁŘ V KARTĚ S PŘEPÍNAČEM 2 V 1 ---
 with st.container(border=True):
-    st.markdown("#### 🎯 Nastavení vaší kampaně")
-    url = st.text_input(
-        "🔗 1. Webová adresa (URL) produktu nebo kategorie (může být v jakémkoliv jazyce):",
-        placeholder="https://www.VasEshop.cz/produkt...",
-    )
+    st.markdown("#### 🎯 Zadání produktu pro kampaň")
 
+    tab_url, tab_manual = st.tabs([
+        "🌐 Možnost A: Z webové adresy (URL)",
+        "✍️ Možnost B: Z vlastního popisu (bez webu)",
+    ])
+
+    with tab_url:
+        col_u1, col_u2 = st.columns([1.2, 1])
+        with col_u1:
+            url_input = st.text_input(
+                "🔗 Webová adresa (URL) produktu nebo kategorie:",
+                placeholder="https://www.VasEshop.cz/produkt...",
+            )
+        with col_u2:
+            product_hint_url = st.text_input(
+                "🎯 Upřesnění / Cílová skupina (nepovinné):",
+                placeholder=(
+                    "např. Dámské ponožky pro dospělé, Luxusní dárek pro"
+                    " muže..."
+                ),
+            )
+
+    with tab_manual:
+        manual_title = st.text_input(
+            "📦 Název produktu nebo služby:",
+            placeholder=(
+                "např. Zateplené merino ponožky ThermoWarm / Individuální"
+                " masáž zad"
+            ),
+        )
+        manual_desc = st.text_area(
+            "📝 Popis produktu, hlavní výhody a parametry:",
+            placeholder=(
+                "Popište, co produkt umí, z čeho je vyroben, jaké problémy"
+                " řeší, pro koho je určen, velikosti, materiály, garance..."
+            ),
+            height=100,
+        )
+
+    st.markdown("---")
+    st.markdown("#### ⚙️ Nastavení cílení a stylu")
     col1, col2, col3 = st.columns(3)
     with col1:
         target_language = st.selectbox(
-            "🌍 2. Jazyk výsledné kampaně a klíčových slov:",
+            "🌍 Jazyk výsledné kampaně a klíčových slov:",
             [
                 "🇨🇿 Čeština",
                 "🇸🇰 Slovenština",
@@ -325,7 +361,7 @@ with st.container(border=True):
         )
     with col2:
         tone_of_voice = st.selectbox(
-            "🗣️ 3. Tón komunikace značky:",
+            "🗣️ Tón komunikace značky:",
             [
                 "Přátelský a blízký (tykání)",
                 "Profesionální a důvěryhodný (vykání)",
@@ -337,7 +373,7 @@ with st.container(border=True):
         )
     with col3:
         special_offer = st.text_input(
-            "🎁 4. Aktuální akce nebo výhoda (nepovinné):",
+            "🎁 Aktuální akce nebo výhoda (nepovinné):",
             placeholder="např. Sleva 15 % s kódem JARO15, Doprava zdarma...",
         )
 
@@ -372,11 +408,10 @@ def scrape_website(target_url):
         return f"Chyba při načítání webu: {e}"
 
 
-# --- FUNKCE PRO PŘÍMÉ NAPOJENÍ NA GOOGLE GEMINI (PODPORA AIzaSy I AQ. KLÍČŮ) ---
-def generate_ads(web_content, key, lang, tone, offer):
+# --- FUNKCE PRO PŘÍMÉ NAPOJENÍ NA GOOGLE GEMINI ---
+def generate_ads(source_content, is_url_source, key, lang, tone, offer, hint):
     key = key.strip()
 
-    # Výchozí seznam modelů (od nejnovějších po starší)
     candidate_models = [
         "gemini-3.8-flash",
         "gemini-3.8-pro",
@@ -386,7 +421,6 @@ def generate_ads(web_content, key, lang, tone, offer):
         "gemini-1.5-flash",
     ]
 
-    # Pokud klíč podporuje výpis modelů, doplníme případné další dostupné modely
     try:
         models_url = (
             f"https://generativelanguage.googleapis.com/v1beta/models?key={key}"
@@ -409,6 +443,15 @@ def generate_ads(web_content, key, lang, tone, offer):
     except Exception:
         pass
 
+    if hint.strip():
+        hint_instruction = f"""
+    ⚠️ DŮLEŽITÉ PŘÍMÉ ZADÁNÍ OD UŽIVATELE K PRODUKTU:
+    Uživatel výslovně specifikoval: "{hint.strip()}".
+    Tato informace má ABSOLUTNÍ PŘEDNOST před jakýmikoliv tvými domněnkami (např. pokud jsou v textu velikosti 24-31 a uživatel uvedl dámské ponožky, jedná se o velikosti v centimetrech pro dospělé ženy, NIKOLIV o dětské ponožky!). Texty, cílovou skupinu a klíčová slova 100% zacíli podle tohoto zadání!
+    """
+    else:
+        hint_instruction = ""
+
     if offer.strip():
         offer_instruction = (
             f"Uživatel zadal tuto speciální akci/výhodu: '{offer.strip()}'."
@@ -419,16 +462,32 @@ def generate_ads(web_content, key, lang, tone, offer):
     else:
         offer_instruction = (
             "Nebyla zadána žádná speciální akce, čerpej čistě z výhod a"
-            " informací na webu."
+            " informací o produktu."
         )
 
+    source_label = (
+        "Zde je obsah stažený z webové stránky:"
+        if is_url_source
+        else (
+            "Zde jsou informace a popis produktu/služby přímo zadané uživatelem:"
+        )
+    )
+
     prompt = f"""
-    Jsi špičkový mezinárodní PPC specialista, SEO analytik, social media tvůrce a kreativní copywriter. Tvým úkolem je vytvořit analýzu klíčových slov, vysoce konverzní reklamy a autentický obsah na sociální sítě na základě obsahu webové stránky.
+    Jsi špičkový mezinárodní PPC specialista, SEO analytik, social media tvůrce a kreativní copywriter. Tvým úkolem je vytvořit analýzu klíčových slov, vysoce konverzní reklamy a autentický obsah na sociální sítě na základě podkladů o produktu.
     
-    Zde je obsah webu:
-    {web_content}
+    {source_label}
+    {source_content}
     
+    🎯 HLAVNÍ FILOZOFIE A STYL PSANÍ (ZÁSADNÍ PRAVIDLA):
+    - **Piš jako skutečný člověk.** Buď profesionální, ale naprosto přirozený, jako kdybys něco vysvětloval chytrému kamarádovi u dobré kávy.
+    - **Vyhýbej se módním výrazům, klišé, prázdným frázím a korporátnímu žargonu** (žádná otřelá slova jako "špičkový, revoluční, unikátní synergie, odemkněte potenciál, posuňte na novou úroveň").
+    - **PŘÍSNÝ ZÁKAZ dlouhých pomlček (—).** Používej přirozenou stavbu vět, tečky, čárky nebo běžné krátké spojovníky (-).
+    - **Nikdy nezni jako tisková zpráva** nebo propagační brožura z 90. let.
+    - **Piš jasně, přímo, konverzačně a přirozeně** v rytmu běžné lidské řeči.
+
     🎯 NASTAVENÍ KAMPANĚ OD UŽIVATELE (STRIKTNĚ DODRŽ!):
+    {hint_instruction}
     - **Cílový jazyk a země vygenerovaných reklam a klíčových slov:** {lang}.
       DŮLEŽITÉ PRAVIDLO PRO JAZYK: Úvodní analýzu trhu (bod 1), orientační nadpisy sekcí, počty znaků nad rámečky a tip na fotku piš vždy ČESKY (aby se český uživatel v přehledu snadno orientoval). Ale **VEŠKERÁ KLÍČOVÁ SLOVA A SAMOTNÉ REKLAMNÍ TEXTY UVNITŘ KOPÍROVACÍCH RÁMEČKŮ (klíčová slova v bodu 2, Google Ads nadpisy a popisy, Facebook reklamy, Instagram příspěvek i hashtagy) piš v perfektním jazyce {lang} na úrovni rodilého mluvčího a podle reálného vyhledávacího chování lidí v dané zemi!**
     - **Požadovaný tón komunikace (Tone of Voice):** {tone}. Tomuto stylu, emocím a zvolenému tykání nebo vykání (podle zvyklostí jazyka {lang}) 100% přizpůsob všechny generované reklamní texty!
@@ -445,7 +504,7 @@ def generate_ads(web_content, key, lang, tone, offer):
 
     ### 📊 1. Analýza produktu a trhu
     Česky stručně a přehledně shrň:
-    - Co přesně se prodává a kdo je ideální zákazník.
+    - Co přesně se prodává a kdo je ideální zákazník (zohledni případné upřesnění od uživatele!).
     - Jaký hlavní problém nebo touhu zákazníkovi produkt řeší (nákupní motivace).
     - Hlavní prodejní argumenty (USP), které prodávají.
 
@@ -456,35 +515,35 @@ def generate_ads(web_content, key, lang, tone, offer):
     - **🚫 Doporučená vylučující klíčová slova / Negative Keywords (6–8 slov v jazyce {lang}):** Slova v jazyce {lang} (např. ekvivalenty slov bazar, zdarma, levně, návod, diskuze apod. relevantní k oboru), která by měl inzerent vyloučit, aby neutrácel za neplatící návštěvníky. (Dej do samostatného bloku ```text ... ```).
     
     ### 🔍 3. Google Ads (Responzivní reklama ve vyhledávání – v jazyce {lang})
-    Vytvoř texty v jazyce {lang} a v nastaveném tónu komunikace ({tone}), které přímo využívají nejkonverznější klíčová slova z bodu 2 a případnou speciální akci. (V Google Ads nepoužívej emotikony).
+    Vytvoř texty v jazyce {lang} a v nastaveném tónu komunikace ({tone}), které přímo využívají nejkonverznější klíčová slova z bodu 2 a případnou speciální akci. Piš jasně, lidsky, úderně. (V Google Ads nepoužívej emotikony).
     - **10 nadpisů v jazyce {lang}** (STRIKTNÍ LIMIT: maximálně 30 znaků včetně mezer pro každý v jazyce {lang}! Každý nadpis dej do vlastního samostatného bloku ```text ... ``` a nad něj napiš česky číslo nadpisu a počet znaků).
     - **4 popisy v jazyce {lang}** (STRIKTNÍ LIMIT: maximálně 90 znaků včetně mezer pro každý v jazyce {lang}! Každý popis dej do vlastního samostatného bloku ```text ... ``` a nad něj napiš česky číslo popisu a počet znaků).
     
     ### 📱 4. Facebook / Instagram PLACENÁ REKLAMA (S TEMATICKÝMI EMOTIKONY – v jazyce {lang})
-    Lidé na FB produkt aktivně nehledají, musíš je zastavit ve scrollování. Piš v jazyce {lang} a ve zvoleném tónu ({tone}).
+    Lidé na FB produkt aktivně nehledají, musíš je zastavit ve scrollování. Piš přirozeně, živě, jako člověk k člověku. Žádný korporátní tón ani dlouhé pomlčky.
     DŮLEŽITÉ PRO EMOTIKONY: Vyber emotikony, které PŘESNĚ tematicky sedí k danému produktu nebo oboru a použij je pro vizuální oživení textu!
     
     Vytvoř 2 varianty v jazyce {lang}:
-    - **Varianta A (Rámec PAS - Problém, Agitace, Řešení):** Zaměř se na bolest/potřebu zákazníka a ukaž produkt jako ideální řešení.
-    - **Varianta B (Zaměřeno na emoce / Lifestyle / Originalitu):** Poutavý úhel pohledu přesně v duchu zvoleného tónu komunikace.
+    - **Varianta A (Rámec PAS - Problém, Agitace, Řešení):** Zaměř se na skutečnou bolest/potřebu zákazníka a ukaž produkt jako přirozené řešení.
+    - **Varianta B (Zaměřeno na emoce / Lifestyle / Originalitu):** Poutavý, uvolněný a lidský úhel pohledu přesně v duchu zvoleného tónu komunikace.
     
     U obou variant dej každou z těchto 3 částí do vlastního samostatného bloku ```text ... ```:
     - **Primární text (HLAVNÍ TEXT NAD OBRÁZKEM – vidět jako první):** 
-      * První věta (tzv. Hook) musí okamžitě zaujmout a obsahovat 1–2 tematické emotikony.
-      * Následuje poutavý text a přehledný seznam hlavních benefitů (včetně případné speciální akce), kde každá odrážka začíná tematickým emotikonem souvisejícím s produktem.
-      * Na konci jasná výzva k akci (CTA) s emotikonem (např. 👉, 🛒).
+      * První věta (tzv. Hook) musí okamžitě zaujmout, znít přirozeně a obsahovat 1–2 tematické emotikony.
+      * Následuje poutavý lidský text a přehledný seznam hlavních benefitů (včetně případné speciální akce), kde každá odrážka začíná tematickým emotikonem souvisejícím s produktem.
+      * Na konci jasná a přirozená výzva k akci (CTA) s emotikonem (např. 👉, 🛒).
     - **Nadpis / Headline (TUČNÝ TEXT POD OBRÁZKEM vedle tlačítka - max 40 znaků):** Krátký, úderný benefit nebo akce v jazyce {lang} + přidej na začátek 1 výrazný tematický emotikon.
     - **Popis / Description (DOPLŇUJÍCÍ TEXT POD NADPISEM - max 30 znaků):** Krátký důkaz nebo výhoda v jazyce {lang} s emotikonem.
 
     ### 📸 5. Organický (neplacený) příspěvek na Instagram (EMOCE, ZÁŽITEK, RITUÁL – v jazyce {lang})
-    Vytvoř text v jazyce {lang} pro běžný neplacený příspěvek na Instagram, který NEVYPADÁ jako reklama, ale jako inspirativní příspěvek.
-    - **Styl a tón:** Emotivní, lidský, nenásilný. Zboží propaguj nepřímo – skrze atmosféru, osobní rituál, zážitek, zpomalení v uspěchaném dni nebo radost z maličkostí.
+    Vytvoř text v jazyce {lang} pro běžný neplacený příspěvek na Instagram, který NEVYPADÁ jako reklama, ale jako inspirativní příspěvek od člověka pro člověka.
+    - **Styl a tón:** Emotivní, lidský, hřejivý, konverzační. Zboží propaguj nepřímo – skrze atmosféru, osobní rituál, zážitek, zpomalení v uspěchaném dni nebo radost z maličkostí. Žádné dlouhé pomlčky.
     - **Struktura příspěvku (opět dej text příspěvku a hashtagy do samostatných bloků ```text ... ``` pro snadné kopírování):**
-      * **Text příspěvku v jazyce {lang} (včetně zapojení sledujících na konci):** Začni atmosférickou první větou s tematickým emotikonem. Vykresli situaci nebo rituál, ve kterém produkt přirozeně hraje roli. Čleň do krátkých odstavců s tematickými emotikony. Na konec textu polož milou otázku do komentářů a jemné nasměrování na odkaz v biu ✨. (Celý tento text dej do jednoho bloku ```text ... ```).
+      * **Text příspěvku v jazyce {lang} (včetně zapojení sledujících na konci):** Začni atmosférickou první větou s tematickým emotikonem. Vykresli situaci nebo rituál, ve kterém produkt přirozeně hraje roli. Čleň do krátkých vzdušných odstavců s tematickými emotikony. Na konec textu polož milou otázku do komentářů a jemné nasměrování na odkaz v biu ✨ (případně nenásilně zmiň probíhající akci). (Celý tento text dej do jednoho bloku ```text ... ```).
       * **Hashtagy v jazyce {lang}:** Blok 8–10 pečlivě vybraných hashtagů v jazyce {lang} (dej je do samostatného bloku ```text ... ```).
       * **🎬 Tip na fotku nebo Reels (česky):** Napiš česky 1–2 věty s konkrétním nápadem, jak produkt vyfotit nebo natočit v reálné situaci, aby vizuál dokonale ladil s touto emocí.
     
-    Piš naprosto přirozeně v jazyce {lang}, jako rodilý copywriter a SEO specialista dané země. Žádné strojové překlady!
+    Piš naprosto přirozeně, lidsky a konverzačně v jazyce {lang}. Žádné strojové překlady ani škrobený žargon!
     """
 
     payload = {
@@ -492,7 +551,6 @@ def generate_ads(web_content, key, lang, tone, offer):
         "generationConfig": {"temperature": 0.75},
     }
 
-    # Podpora jak pro klasické AI Studio klíče (AIzaSy...), tak pro nové Vertex/Cloud klíče (AQ...)
     last_error = ""
     for model_id in candidate_models:
         clean_model = model_id.replace("models/", "")
@@ -531,8 +589,11 @@ def generate_ads(web_content, key, lang, tone, offer):
     return last_error
 
 
-# --- HLAVNÍ LOGIKA APLIKACE ---
+# --- HLAVNÍ LOGIKA APLIKACE (BUĎ URL NEBO VLASTNÍ POPIS) ---
 if generate_clicked:
+    has_url = bool(url_input.strip())
+    has_manual = bool(manual_title.strip() or manual_desc.strip())
+
     if not license_ok:
         st.error(
             "🔒 Pro spuštění generátoru se prosím nejprve autorizujte v horní"
@@ -543,34 +604,50 @@ if generate_clicked:
             "🔑 Prosím, vložte v horní kartě svůj Google AI API klíč (návod"
             " najdete přímo pod políčkem)."
         )
-    elif not url:
-        st.warning("🔗 Prosím, zadejte webovou adresu (URL) produktu.")
+    elif not has_url and not has_manual:
+        st.warning(
+            "⚠️ Zadejte prosím buď webovou adresu v Možnosti A, NEBO popište"
+            " produkt v Možnosti B."
+        )
     else:
-        with st.spinner(
-            "⏳ Analyzuji web, hledám nejkonverznější klíčová slova ("
-            f"{target_language}) a tvořím kampaň..."
-        ):
-            scraped_text = scrape_website(url)
-            if scraped_text.startswith("Chyba"):
-                st.error(scraped_text)
+        # Rozhodnutí, který zdroj použijeme
+        if has_url:
+            with st.spinner(
+                "⏳ Načítám web, analyzuji klíčová slova a tvořím kampaň..."
+            ):
+                source_text = scrape_website(url_input)
+                is_url = True
+                hint_to_use = product_hint_url
+        else:
+            with st.spinner(
+                "⏳ Zpracovávám váš popis produktu, hledám klíčová slova a"
+                " tvořím kampaň..."
+            ):
+                source_text = f"Název: {manual_title}\nPopis a parametry: {manual_desc}"
+                is_url = False
+                hint_to_use = ""
+
+        if is_url and source_text.startswith("Chyba"):
+            st.error(source_text)
+        else:
+            ads_result = generate_ads(
+                source_text,
+                is_url,
+                api_key,
+                target_language,
+                tone_of_voice,
+                special_offer,
+                hint_to_use,
+            )
+            if ads_result.startswith("❌"):
+                st.error(ads_result)
             else:
-                ads_result = generate_ads(
-                    scraped_text,
-                    api_key,
-                    target_language,
-                    tone_of_voice,
-                    special_offer,
+                st.success(
+                    f"✅ Kompletní kampaň i analýza klíčových slov ("
+                    f"{target_language}) je připravena! Najetím myší na"
+                    " libovolný rámeček zobrazíte ikonku 📋 pro zkopírování:"
                 )
-                if ads_result.startswith("❌"):
-                    st.error(ads_result)
-                else:
-                    st.success(
-                        f"✅ Kompletní kampaň i analýza klíčových slov ("
-                        f"{target_language}) je připravena! Najetím myší na"
-                        " libovolný rámeček zobrazíte ikonku 📋 pro"
-                        " zkopírování:"
-                    )
-                    st.markdown(ads_result)
+                st.markdown(ads_result)
 
 # --- VLASTNÍ NADČASOVÁ PATIČKA ---
 st.markdown(
