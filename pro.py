@@ -21,7 +21,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-# --- MODERNÍ PROFI DESIGN ---
+# --- MODERNÍ PROFI DESIGN + STYLOVÁNÍ PŘEPÍNACÍCH TLAČÍTEK ---
 st.markdown(
     """
 <style>
@@ -55,7 +55,7 @@ section[data-testid="stSidebar"] {display: none;}
     font-weight: 400;
 }
 
-/* JEDNODUCHÝ ČISTÝ RÁMEČEK (pouze vnější obal) */
+/* JEDNODUCHÝ ČISTÝ RÁMEČEK VÝSLEDKŮ */
 div[data-testid="stCodeBlock"] pre, div[data-testid="stCode"] pre {
     white-space: pre-wrap !important;
     word-wrap: break-word !important;
@@ -69,7 +69,6 @@ div[data-testid="stCodeBlock"] pre, div[data-testid="stCode"] pre {
     box-shadow: none !important;
 }
 
-/* Vnitřní text zcela BEZ druhého rámečku a bez pozadí */
 div[data-testid="stCodeBlock"] code, div[data-testid="stCode"] code, pre code {
     white-space: pre-wrap !important;
     word-wrap: break-word !important;
@@ -81,18 +80,35 @@ div[data-testid="stCodeBlock"] code, div[data-testid="stCode"] code, pre code {
     box-shadow: none !important;
 }
 
+/* ZVÝRAZNĚNÍ ROZCESTNÍKU (PŘEPÍNACÍCH TLAČÍTEK) */
+div[data-testid="stRadio"] > div {
+    background: #f1f5f9;
+    padding: 6px;
+    border-radius: 12px;
+    gap: 10px;
+}
+div[data-testid="stRadio"] label {
+    background: transparent;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
 /* Moderní velké tlačítko pro generování */
 div.stButton > button:first-child {
     background: linear-gradient(90deg, #2563eb 0%, #7c3aed 100%);
     color: white;
     border: none;
-    padding: 14px 28px;
+    padding: 15px 30px;
     font-size: 18px;
     font-weight: 700;
     border-radius: 10px;
     width: 100%;
     box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
     transition: all 0.2s ease;
+    margin-top: 10px;
 }
 div.stButton > button:first-child:hover {
     transform: translateY(-2px);
@@ -173,7 +189,7 @@ def verify_and_lock_license(code, user_api_key):
         return (
             True,
             (
-                "✅ Licenční kód je platný! Nyní vedle vložte svůj Google API"
+                "✅ Licenční kód je platný! Nyní vedle vložte svůj Google AI"
                 " klíč."
             ),
         )
@@ -225,6 +241,7 @@ except Exception:
 
 # --- HORNÍ ROZBALOVACÍ KARTA S PŘIHLÁŠENÍM / LICENCÍ ---
 if saved_key:
+    # VIP MAJITELSKÁ VERZE
     expected_pass = admin_secret_pass if admin_secret_pass else "Admin2026"
     with st.expander(
         "🔐 Přihlášení majitele & Generátor licencí pro zákazníky (Klikněte pro"
@@ -268,6 +285,7 @@ if saved_key:
                 )
                 st.code(codes_list, language="text")
 else:
+    # ZÁKAZNICKÁ VERZE
     with st.expander(
         "🔑 Aktivace licence a propojení Google AI klíče (Klikněte pro"
         " otevření/zavření)",
@@ -302,16 +320,28 @@ else:
             " políčka výše. Zabere to 1 minutu a je to zcela zdarma."
         )
 
-# --- HLAVNÍ VSTUPNÍ FORMULÁŘ V KARTĚ S PŘEPÍNAČEM 2 V 1 ---
+# --- HLAVNÍ VSTUPNÍ FORMULÁŘ S VÝRAZNÝM ROZCESTNÍKEM ---
 with st.container(border=True):
-    st.markdown("#### 🎯 Zadání produktu pro kampaň")
+    st.markdown("#### 🎯 1. Jak chcete zadat produkt do kampaně?")
 
-    tab_url, tab_manual = st.tabs([
-        "🌐 Možnost A: Z webové adresy (URL)",
-        "✍️ Možnost B: Z vlastního popisu (bez webu)",
-    ])
+    # PŘEPÍNACÍ TLAČÍTKA (ROZCESTNÍK)
+    vstupni_rezim = st.radio(
+        "Zvolte možnost zadání:",
+        [
+            "🌐 Možnost A: Mám webovou adresu (URL odkazu)",
+            "✍️ Možnost B: Nemám web – zadám vlastní popis textem",
+        ],
+        horizontal=True,
+        label_visibility="collapsed",
+    )
 
-    with tab_url:
+    url_input = ""
+    product_hint_url = ""
+    manual_title = ""
+    manual_desc = ""
+
+    st.write("")
+    if vstupni_rezim == "🌐 Možnost A: Mám webovou adresu (URL odkazu)":
         col_u1, col_u2 = st.columns([1.2, 1])
         with col_u1:
             url_input = st.text_input(
@@ -326,8 +356,7 @@ with st.container(border=True):
                     " muže..."
                 ),
             )
-
-    with tab_manual:
+    else:
         manual_title = st.text_input(
             "📦 Název produktu nebo služby:",
             placeholder=(
@@ -341,11 +370,11 @@ with st.container(border=True):
                 "Popište, co produkt umí, z čeho je vyroben, jaké problémy"
                 " řeší, pro koho je určen, velikosti, materiály, garance..."
             ),
-            height=100,
+            height=110,
         )
 
     st.markdown("---")
-    st.markdown("#### ⚙️ Nastavení cílení a stylu")
+    st.markdown("#### ⚙️ 2. Nastavení cílení a stylu")
     col1, col2, col3 = st.columns(3)
     with col1:
         target_language = st.selectbox(
@@ -589,10 +618,11 @@ def generate_ads(source_content, is_url_source, key, lang, tone, offer, hint):
     return last_error
 
 
-# --- HLAVNÍ LOGIKA APLIKACE (BUĎ URL NEBO VLASTNÍ POPIS) ---
+# --- HLAVNÍ LOGIKA S KONTROLOU VSTUPŮ ---
 if generate_clicked:
-    has_url = bool(url_input.strip())
-    has_manual = bool(manual_title.strip() or manual_desc.strip())
+    is_mode_url = (
+        vstupni_rezim == "🌐 Možnost A: Mám webovou adresu (URL odkazu)"
+    )
 
     if not license_ok:
         st.error(
@@ -604,14 +634,14 @@ if generate_clicked:
             "🔑 Prosím, vložte v horní kartě svůj Google AI API klíč (návod"
             " najdete přímo pod políčkem)."
         )
-    elif not has_url and not has_manual:
+    elif is_mode_url and not url_input.strip():
+        st.warning("🔗 Prosím, zadejte webovou adresu (URL) produktu.")
+    elif not is_mode_url and not (manual_title.strip() or manual_desc.strip()):
         st.warning(
-            "⚠️ Zadejte prosím buď webovou adresu v Možnosti A, NEBO popište"
-            " produkt v Možnosti B."
+            "📝 Prosím, vyplňte název nebo popis vašeho produktu či služby."
         )
     else:
-        # Rozhodnutí, který zdroj použijeme
-        if has_url:
+        if is_mode_url:
             with st.spinner(
                 "⏳ Načítám web, analyzuji klíčová slova a tvořím kampaň..."
             ):
