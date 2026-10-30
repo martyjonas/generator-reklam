@@ -83,17 +83,17 @@ div[data-testid="stCodeBlock"] code, div[data-testid="stCode"] code, pre code {
 /* ZVÝRAZNĚNÍ ROZCESTNÍKU (PŘEPÍNACÍCH TLAČÍTEK) */
 div[data-testid="stRadio"] > div {
     background: #f1f5f9;
-    padding: 6px;
+    padding: 8px;
     border-radius: 12px;
-    gap: 10px;
+    gap: 12px;
 }
 div[data-testid="stRadio"] label {
-    background: transparent;
-    padding: 10px 20px;
+    background: white;
+    padding: 12px 24px;
     border-radius: 8px;
-    font-weight: 600;
+    font-weight: 700;
     cursor: pointer;
-    transition: all 0.2s ease;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
 }
 
 /* Moderní velké tlačítko pro generování */
@@ -101,9 +101,9 @@ div.stButton > button:first-child {
     background: linear-gradient(90deg, #2563eb 0%, #7c3aed 100%);
     color: white;
     border: none;
-    padding: 15px 30px;
-    font-size: 18px;
-    font-weight: 700;
+    padding: 16px 32px;
+    font-size: 19px;
+    font-weight: 800;
     border-radius: 10px;
     width: 100%;
     box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
@@ -230,66 +230,40 @@ st.markdown(
 
 # --- NAČTENÍ SECRETS PRO ROZLIŠENÍ VIP A ZÁKAZNICKÉ VERZE ---
 saved_key = ""
-admin_secret_pass = ""
 try:
     if "GOOGLE_API_KEY" in st.secrets:
         saved_key = st.secrets["GOOGLE_API_KEY"]
-    if "ADMIN_HESLO" in st.secrets:
-        admin_secret_pass = st.secrets["ADMIN_HESLO"]
 except Exception:
     pass
 
-# --- HORNÍ ROZBALOVACÍ KARTA S PŘIHLÁŠENÍM / LICENCÍ ---
+# --- AUTORIZACE ---
 if saved_key:
-    # VIP MAJITELSKÁ VERZE
-    expected_pass = admin_secret_pass if admin_secret_pass else "Admin2026"
+    # VIP MAJITELSKÁ VERZE: OKAMŽITĚ AKTIVNÍ BEZ HESLA!
+    api_key = saved_key
+    license_ok = True
     with st.expander(
-        "🔐 Přihlášení majitele & Generátor licencí pro zákazníky (Klikněte pro"
-        " otevření/zavření)",
-        expanded=True,
+        "🔑 VIP Majitelský režim je aktivní (Klikněte pro generátor licencí pro"
+        " zákazníky)"
     ):
-        col_adm1, col_adm2 = st.columns([1, 2])
-        with col_adm1:
-            entered_admin_pass = st.text_input(
-                "Zadejte majitelské heslo:", type="password"
-            )
-            if entered_admin_pass == expected_pass:
-                api_key = saved_key
-                license_ok = True
-                st.success(
-                    "🔑 VIP Majitelská verze je odemčena a připravena ke"
-                    " generování!"
-                )
-            else:
-                api_key = ""
-                license_ok = False
-                if entered_admin_pass:
-                    st.error("❌ Nesprávné majitelské heslo.")
-                else:
-                    st.info("🔒 Zadejte heslo majitele pro odemčení aplikace.")
-
-        with col_adm2:
-            if license_ok:
-                st.markdown("##### 🎟️ Generátor unikátních kódů pro zákazníky")
-                batch_start = st.number_input(
-                    "Vygenerovat sadu 20 kódů od čísla zákazníka:",
-                    min_value=1,
-                    value=1,
-                    step=20,
-                )
-                codes_list = "\n".join(
-                    [
-                        create_license_code(i)
-                        for i in range(batch_start, batch_start + 20)
-                    ]
-                )
-                st.code(codes_list, language="text")
+        st.success("Jste přihlášen jako majitel. Váš API klíč je aktivní.")
+        st.markdown("##### 🎟️ Generátor unikátních kódů pro zákazníky")
+        batch_start = st.number_input(
+            "Vygenerovat sadu 20 kódů od čísla zákazníka:",
+            min_value=1,
+            value=1,
+            step=20,
+        )
+        codes_list = "\n".join(
+            [
+                create_license_code(i)
+                for i in range(batch_start, batch_start + 20)
+            ]
+        )
+        st.code(codes_list, language="text")
 else:
-    # ZÁKAZNICKÁ VERZE
+    # ZÁKAZNICKÁ VERZE: ZADÁNÍ LICENCE A KLÍČE
     with st.expander(
-        "🔑 Aktivace licence a propojení Google AI klíče (Klikněte pro"
-        " otevření/zavření)",
-        expanded=True,
+        "🔑 Aktivace licence a propojení Google AI klíče", expanded=True
     ):
         col_lic1, col_lic2 = st.columns(2)
         with col_lic1:
@@ -320,11 +294,10 @@ else:
             " políčka výše. Zabere to 1 minutu a je to zcela zdarma."
         )
 
-# --- HLAVNÍ VSTUPNÍ FORMULÁŘ S VÝRAZNÝM ROZCESTNÍKEM ---
+# --- HLAVNÍ VSTUPNÍ FORMULÁŘ ---
 with st.container(border=True):
     st.markdown("#### 🎯 1. Jak chcete zadat produkt do kampaně?")
 
-    # PŘEPÍNACÍ TLAČÍTKA (ROZCESTNÍK)
     vstupni_rezim = st.radio(
         "Zvolte možnost zadání:",
         [
@@ -341,7 +314,7 @@ with st.container(border=True):
     manual_desc = ""
 
     st.write("")
-    if vstupni_rezim == "🌐 Možnost A: Mám webovou adresu (URL odkazu)":
+    if "Možnost A" in vstupni_rezim:
         col_u1, col_u2 = st.columns([1.2, 1])
         with col_u1:
             url_input = st.text_input(
@@ -406,7 +379,29 @@ with st.container(border=True):
             placeholder="např. Sleva 15 % s kódem JARO15, Doprava zdarma...",
         )
 
+    # --- ŽIVÝ SEMAFOR KONTROLY PŘED KLIKNUTÍM ---
     st.write("")
+    is_mode_url = "Možnost A" in vstupni_rezim
+    has_valid_input = bool(
+        url_input.strip()
+        if is_mode_url
+        else (manual_title.strip() or manual_desc.strip())
+    )
+
+    if not license_ok:
+        st.warning(
+            "🔒 Pro spuštění nejprve zadejte licenční kód v horní kartě."
+        )
+    elif not api_key:
+        st.warning("🔑 V horní kartě chybí Google AI API klíč.")
+    elif not has_valid_input:
+        if is_mode_url:
+            st.info("ℹ️ Pro spuštění vložte výše webovou adresu (URL).")
+        else:
+            st.info("ℹ️ Pro spuštění popište výše svůj produkt či službu.")
+    else:
+        st.success("🟢 Vše je připraveno ke generování!")
+
     generate_clicked = st.button("✨ Vygenerovat kompletní kampaň")
 
 
@@ -618,28 +613,16 @@ def generate_ads(source_content, is_url_source, key, lang, tone, offer, hint):
     return last_error
 
 
-# --- HLAVNÍ LOGIKA S KONTROLOU VSTUPŮ ---
+# --- HLAVNÍ SPOUŠTĚCÍ LOGIKA ---
 if generate_clicked:
-    is_mode_url = (
-        vstupni_rezim == "🌐 Možnost A: Mám webovou adresu (URL odkazu)"
-    )
-
     if not license_ok:
         st.error(
-            "🔒 Pro spuštění generátoru se prosím nejprve autorizujte v horní"
-            " kartě nad formulářem."
+            "🔒 Pro spuštění se prosím nejprve autorizujte v horní kartě."
         )
     elif not api_key:
-        st.warning(
-            "🔑 Prosím, vložte v horní kartě svůj Google AI API klíč (návod"
-            " najdete přímo pod políčkem)."
-        )
-    elif is_mode_url and not url_input.strip():
-        st.warning("🔗 Prosím, zadejte webovou adresu (URL) produktu.")
-    elif not is_mode_url and not (manual_title.strip() or manual_desc.strip()):
-        st.warning(
-            "📝 Prosím, vyplňte název nebo popis vašeho produktu či služby."
-        )
+        st.error("🔑 Chybí Google AI API klíč v horní kartě.")
+    elif not has_valid_input:
+        st.warning("⚠️ Vyplňte prosím zadané údaje o produktu.")
     else:
         if is_mode_url:
             with st.spinner(
